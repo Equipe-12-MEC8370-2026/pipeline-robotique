@@ -1,0 +1,253 @@
+<title>Résultats CTA P0</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column of a lab report, wide figure blocks (chart, pipeline) break out to full width */
+:root {
+  --bg: #f6f6f2;
+  --surface: #ffffff;
+  --ink: #1d2128;
+  --muted: #5b626e;
+  --line: #d9dbd3;
+  --accent: #c99a06;        /* SO-101 arm yellow, darkened for text contrast */
+  --accent-soft: #f3e2a6;
+  --ok: #1f8a4c;
+  --bad: #c0392b;
+  --bar-ref: #9aa1ab;
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15181d; --surface: #1d2128; --ink: #e9eaec; --muted: #a2a8b2; --line: #333943;
+    --accent: #f0c419; --accent-soft: #4a3f12; --ok: #4cc27c; --bad: #ef6b5b; --bar-ref: #6f7782;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15181d; --surface: #1d2128; --ink: #e9eaec; --muted: #a2a8b2; --line: #333943;
+  --accent: #f0c419; --accent-soft: #4a3f12; --ok: #4cc27c; --bad: #ef6b5b; --bar-ref: #6f7782;
+  color-scheme: dark;
+}
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.6;
+}
+.wrap {
+  max-width: 980px; margin: 0 auto;
+  padding-block: 40px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 48px;
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 800; letter-spacing: -0.01em; }
+h2 { font-size: 24px; font-weight: 700; }
+h3 { font-size: 17px; font-weight: 700; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow {
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+}
+section { display: flex; flex-direction: column; gap: 16px; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* opening */
+.head { display: flex; flex-direction: column; gap: 14px; }
+.lede { font-size: 18px; color: var(--muted); }
+.result {
+  display: grid; grid-template-columns: auto 1fr; gap: 8px 28px; align-items: center;
+  border-top: 3px solid var(--accent); padding-top: 20px;
+}
+.result .big { font-family: var(--font-display); font-weight: 800; font-size: clamp(56px, 11vw, 96px); line-height: 1; font-variant-numeric: tabular-nums; }
+.result dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; }
+.result dt { color: var(--muted); }
+.result dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .result { grid-template-columns: 1fr; } }
+
+/* chart */
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 20px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 560px; height: auto; }
+.chart text { font-family: var(--font-body); fill: var(--ink); }
+.chart .tick { font-family: var(--font-mono); font-size: 11px; fill: var(--muted); }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .val { font-family: var(--font-mono); font-size: 13px; }
+.chart .sub { font-size: 12px; fill: var(--muted); }
+.note { font-size: 14px; color: var(--muted); }
+
+/* tables */
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 15px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.kept td { background: var(--accent-soft); }
+.pill { display: inline-block; font-family: var(--font-mono); font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.pill.ok { color: var(--ok); } .pill.bad { color: var(--bad); }
+
+/* pipeline */
+.pipe { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; counter-reset: s; }
+.step { position: relative; padding: 14px 16px 14px 0; border-top: 2px solid var(--ink); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.step::before { counter-increment: s; content: counter(s); font-family: var(--font-mono); font-size: 12px; color: var(--accent); font-weight: 500; }
+.step p { font-size: 14px; color: var(--muted); }
+.env { display: inline-block; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+@media (max-width: 760px) { .pipe { grid-template-columns: 1fr; } .step { padding-right: 0; } }
+
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+.two > div { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+@media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+li { max-width: 68ch; }
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+
+<div class="wrap">
+
+  <header class="head">
+    <span class="eyebrow">CTA · MEC8370 équipe 12 · démo du 20 novembre 2026</span>
+    <h1>Un bras SO-101 qui apprend le pick-and-place à partir de démonstrations</h1>
+    <p class="lede">Une politique ACT entraînée de zéro sur 150 démonstrations simulées saisit un cube et le dépose sur une cible, en ne voyant que ses articulations et deux caméras. Mesuré sur 50 essais en simulation (Isaac Sim), dont 10 positions hors de la plage d'entraînement.</p>
+    <div class="result">
+      <div class="big">92&nbsp;%</div>
+      <dl>
+        <dt>Succès</dt><dd>46 / 50 essais</dd>
+        <dt>IC 95 %</dt><dd>81 – 97 % (Wilson)</dd>
+        <dt>Dans la plage</dt><dd>38 / 40</dd>
+        <dt>Hors plage</dt><dd>8 / 10</dd>
+      </dl>
+    </div>
+  </header>
+
+  <section>
+    <span class="eyebrow">Résultats</span>
+    <h2>Taux de succès sur les mêmes 50 essais</h2>
+    <p>Chaque agent rejoue exactement les mêmes 50 conditions initiales (position et orientation du cube, position de la cible, éclairage, couleur de table). Le critère de succès n'a jamais été modifié : cube posé dans la cible à 3 cm près, au repos, pince relâchée.</p>
+    <div class="chart" role="img" aria-label="Taux de succès : ACT, prédiction de 100 pas, 72 %, ACT, replanification aux 25 pas, 92 %, ACT avec démos de reprise, 86 %, expert scripté, 100 %">
+      <svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg">
+        <!-- x scale: 0 % at x=260, 100 % at x=700 (4.4 px per %) -->
+        <g>
+          <line class="grid" x1="260" y1="20" x2="260" y2="262"/>
+          <line class="grid" x1="370" y1="20" x2="370" y2="262"/>
+          <line class="grid" x1="480" y1="20" x2="480" y2="262"/>
+          <line class="grid" x1="590" y1="20" x2="590" y2="262"/>
+          <line class="grid" x1="700" y1="20" x2="700" y2="262"/>
+          <text class="tick" x="260" y="282" text-anchor="middle">0 %</text>
+          <text class="tick" x="370" y="282" text-anchor="middle">25 %</text>
+          <text class="tick" x="480" y="282" text-anchor="middle">50 %</text>
+          <text class="tick" x="590" y="282" text-anchor="middle">75 %</text>
+          <text class="tick" x="700" y="282" text-anchor="middle">100 %</text>
+        </g>
+        <!-- ACT chunk 100: 72 % [58, 83] -->
+        <text x="0" y="44" font-size="14" font-weight="600">ACT, prédiction de 100 pas</text>
+        <text class="sub" x="0" y="62">premier modèle</text>
+        <rect x="260" y="34" width="316.8" height="26" rx="2" style="fill: var(--bar-ref)"/>
+        <line x1="515.2" y1="47" x2="625.2" y2="47" style="stroke: var(--ink)" stroke-width="1.5"/>
+        <line x1="515.2" y1="40" x2="515.2" y2="54" style="stroke: var(--ink)" stroke-width="1.5"/>
+        <line x1="625.2" y1="40" x2="625.2" y2="54" style="stroke: var(--ink)" stroke-width="1.5"/>
+        <text class="val" x="634" y="52">36/50 · 72 %</text>
+        <!-- ACT n25: 92 % [81, 97] -->
+        <text x="0" y="104" font-size="14" font-weight="700">ACT, replanification aux 25 pas</text>
+        <text class="sub" x="0" y="122">retenu pour la démo</text>
+        <rect x="260" y="94" width="404.8" height="26" rx="2" style="fill: var(--accent)"/>
+        <line x1="616.4" y1="107" x2="686.8" y2="107" style="stroke: var(--ink)" stroke-width="1.5"/>
+        <line x1="616.4" y1="100" x2="616.4" y2="114" style="stroke: var(--ink)" stroke-width="1.5"/>
+        <line x1="686.8" y1="100" x2="686.8" y2="114" style="stroke: var(--ink)" stroke-width="1.5"/>
+        <text class="val" x="694" y="137" text-anchor="end" font-weight="500">46/50 · 92 %</text>
+        <!-- ACT v2 n25: 86 % [74, 93] -->
+        <text x="0" y="164" font-size="14" font-weight="600">ACT + démos de reprise</text>
+        <text class="sub" x="0" y="182">essai v2, non retenu</text>
+        <rect x="260" y="154" width="378.4" height="26" rx="2" style="fill: var(--bar-ref)"/>
+        <line x1="585.6" y1="167" x2="669.2" y2="167" style="stroke: var(--ink)" stroke-width="1.5"/>
+        <line x1="585.6" y1="160" x2="585.6" y2="174" style="stroke: var(--ink)" stroke-width="1.5"/>
+        <line x1="669.2" y1="160" x2="669.2" y2="174" style="stroke: var(--ink)" stroke-width="1.5"/>
+        <text class="val" x="694" y="197" text-anchor="end">43/50 · 86 %</text>
+        <!-- expert: 100 % [93, 100] -->
+        <text x="0" y="224" font-size="14" font-weight="600">Expert scripté</text>
+        <text class="sub" x="0" y="242">référence, voit l'état exact</text>
+        <rect x="260" y="214" width="440" height="26" rx="2" fill="none" style="stroke: var(--bar-ref)" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <line x1="669.2" y1="227" x2="700" y2="227" style="stroke: var(--ink)" stroke-width="1.5"/>
+        <line x1="669.2" y1="220" x2="669.2" y2="234" style="stroke: var(--ink)" stroke-width="1.5"/>
+        <text class="val" x="694" y="257" text-anchor="end">50/50 · 100 %</text>
+      </svg>
+    </div>
+    <p class="note">Barres d'erreur : intervalle de confiance à 95 % (Wilson). Le passage de 72 % à 92 % est significatif sur les essais appariés (13 essais rattrapés, 3 perdus, McNemar p ≈ 0,02) ; l'écart entre 92 % et 86 % ne l'est pas (p ≈ 0,45).</p>
+  </section>
+
+  <section>
+    <span class="eyebrow">Démarche</span>
+    <h2>Trois itérations, une seule variable à la fois</h2>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Itération</th><th>Ce qui change</th><th>Succès</th><th>Décision</th></tr></thead>
+        <tbody>
+          <tr><td>P0.5</td><td>ACT exécute 100 actions prédites d'un coup, sans regarder</td><td class="num">72 %</td><td><span class="pill bad">base</span></td></tr>
+          <tr class="kept"><td>P0.6 A</td><td>Même modèle, nouvelle prédiction tous les 25 pas : il réagit si le cube glisse</td><td class="num">92 %</td><td><span class="pill ok">retenu</span></td></tr>
+          <tr><td>P0.6 B</td><td>Correction de l'expert (hauteur de retrait sous le seuil de relâchement)</td><td class="num">expert 50/50</td><td><span class="pill ok">corrigé</span></td></tr>
+          <tr><td>P0.6 C–D</td><td>Réentraînement avec 47 démos de reprise après une saisie ratée</td><td class="num">86 %</td><td><span class="pill bad">rejeté</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Règle fixée avant de commencer : un nouveau modèle n'est gardé que s'il fait mieux sur les mêmes 50 essais.</p>
+  </section>
+
+  <section>
+    <span class="eyebrow">Architecture</span>
+    <h2>De la démonstration à la politique évaluée</h2>
+    <div class="pipe">
+      <div class="step">
+        <h3>Scène</h3>
+        <p>SO-101 (5 articulations + pince), cube 3 cm, cible. Positions, éclairage, couleur de table et caméras tirés au hasard.</p>
+        <span class="env">Isaac Sim 6.1 · Isaac Lab 3.0</span>
+      </div>
+      <div class="step">
+        <h3>Expert scripté</h3>
+        <p>Machine à états + cinématique inverse, avec accès à l'état exact. 150 démonstrations réussies, 30 Hz.</p>
+        <span class="env">isaacsim-env</span>
+      </div>
+      <div class="step">
+        <h3>Dataset</h3>
+        <p>Format LeRobot v3 : articulations en radians, caméra de face + caméra au poignet, 46 639 images. Vérifié 6/6.</p>
+        <span class="env">.venv-learn</span>
+      </div>
+      <div class="step">
+        <h3>ACT</h3>
+        <p>Transformer + VAE, ResNet-18, 51,6 M paramètres, blocs de 100 actions. 100 000 pas, environ 4 h sur RTX 4070 SUPER.</p>
+        <span class="env">LeRobot 0.6.1</span>
+      </div>
+      <div class="step">
+        <h3>Évaluation</h3>
+        <p>Serveur de politique ↔ simulation par socket local. La politique ne voit que les articulations et les deux images ; commandes bornées aux limites.</p>
+        <span class="env">2 processus</span>
+      </div>
+    </div>
+    <p class="note">Les deux environnements Python restent séparés (torch 2.10 côté Isaac, 2.11 côté apprentissage) : aucune installation dans l'environnement d'Isaac. La même interface servira pour le vrai robot.</p>
+  </section>
+
+  <section class="two">
+    <div>
+      <span class="eyebrow">Diagnostic</span>
+      <h2>Où la politique échoue encore</h2>
+      <ul>
+        <li>Les 4 échecs restants sont des cubes jamais soulevés : la pince se ferme à côté du cube ou le cube glisse.</li>
+        <li>Ils sont surtout aux bords de l'espace de travail : cube décalé de plus de 5 cm latéralement (essais 11, 39, 41, 44), dont 2 hors de la plage d'entraînement.</li>
+        <li>Relancée, l'évaluation redonne 46/50, mais deux essais limites changent d'issue (33 rate, 44 réussit) : la simulation GPU n'est pas reproductible au bit près, le taux l'est.</li>
+        <li>La replanification permet déjà de rattraper certains cubes qui glissent : à l'essai 14, le cube retombe, la politique revient le saisir et le dépose dans la cible.</li>
+        <li>Les démos de reprise n'ont pas aidé : le modèle v2 hésite au-dessus du cube sans descendre. Hypothèse : ces démos commencent pince en l'air, décalée du cube.</li>
+      </ul>
+    </div>
+    <div>
+      <span class="eyebrow">Suite</span>
+      <h2>Après la démo</h2>
+      <ul>
+        <li>SmolVLA (modèle vision-langage-action) sur le même dataset, comparé sur les mêmes 50 essais.</li>
+        <li>Transfert sur les machines du CTA (RTX 5090, RTX PRO 6000) pour des modèles plus gros.</li>
+        <li>Passage au vrai SO-101 avec la même interface de politique.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    Essais : graine 7, 40 dans la plage d'entraînement (cube ±4 cm × ±8 cm, ±45°) et 10 hors plage (jusqu'à ±6 cm × ±10 cm, ±60°). Démos : graine 1. Environ 22 s par essai, 20 s de temps simulé au maximum.
+  </footer>
+</div>

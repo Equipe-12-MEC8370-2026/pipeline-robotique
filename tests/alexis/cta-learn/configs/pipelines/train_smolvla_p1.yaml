@@ -1,0 +1,36 @@
+# P1 — SmolVLA fine-tuned from the official base on the SAME P0 dataset as ACT (150 scripted demos,
+# radians, 30 Hz), for a fair comparison. Launch through scripts/train/train_act.py --config <this file>
+# (generic despite its name: it checks dataset units first and resolves relative paths against the repo root).
+#
+# policy.path = the pinned, hash-verified public base (scripts/train/fetch_smolvla_base.py, P1.2).
+# The other policy.* keys override the base config; everything left out = base / LeRobot SmolVLA defaults:
+# frozen vision encoder, action expert trained only, chunk 50, lr 1e-4, warmup 1000, cosine decay.
+# State/action use MEAN_STD with OUR dataset stats (radians), so the base's community units do not leak in.
+
+dataset:
+  repo_id: cta/p0_pickplace
+  root: data/datasets/p0_pickplace      # relative to cta-learn/
+  video_backend: pyav                   # torchcodec DLLs do not load on this Windows station
+
+policy:
+  path: data/pretrained/smolvla_base    # relative to cta-learn/
+  device: cuda
+  push_to_hub: false
+  empty_cameras: 1                      # base was trained with 3 cameras; the 3rd slot is padded
+
+# sim camera names -> base camera slots (front = 3rd-person view, wrist = gripper view)
+rename_map:
+  observation.images.front: observation.images.camera1
+  observation.images.wrist: observation.images.camera2
+
+output_dir: outputs/train/smolvla_p1    # relative to cta-learn/; LeRobot refuses to overwrite it
+job_name: smolvla_p1
+seed: 1000
+batch_size: 16                          # smoke tests: b8 31 smp/s 3.9 GB; b16 35 smp/s 6.4 GB; b32 24 smp/s 11.3 GB (spills)
+num_workers: 4
+steps: 30000                            # 2.18 steps/s at b16 -> ~3.8 h; 480K samples = ~10 epochs; = base decay_steps
+log_freq: 200
+save_freq: 5000
+env_eval_freq: 0                        # sim evaluation runs in isaacsim-env (P1.6)
+wandb:
+  enable: false

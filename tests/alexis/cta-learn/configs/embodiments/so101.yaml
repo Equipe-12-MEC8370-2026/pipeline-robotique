@@ -1,0 +1,23 @@
+# SO-101 follower arm (single arm). Source of the joint limits: the SO-101 USD
+# shipped with LeIsaac 0.4.0 (SO101_FOLLOWER_USD_JOINT_LIMLITS, in degrees).
+# Limits are written in degrees here for readability; the loader converts them
+# to radians, which is the only unit used inside cta_learn.
+name: so101
+control_hz: 30
+
+arms:
+  - name: main
+    ee_body: gripper
+    joints:
+      # order = order of the state/action vectors everywhere in the pipeline
+      - {name: shoulder_pan,  kind: revolute, limits_deg: [-110.0, 110.0], lerobot_norm: m100_100}
+      - {name: shoulder_lift, kind: revolute, limits_deg: [-100.0, 100.0], lerobot_norm: m100_100}
+      - {name: elbow_flex,    kind: revolute, limits_deg: [-100.0,  90.0], lerobot_norm: m100_100}
+      - {name: wrist_flex,    kind: revolute, limits_deg: [ -95.0,  95.0], lerobot_norm: m100_100}
+      - {name: wrist_roll,    kind: revolute, limits_deg: [-160.0, 160.0], lerobot_norm: m100_100}
+      - {name: gripper,       kind: gripper,  limits_deg: [ -10.0, 100.0], lerobot_norm: "0_100"}
+
+cameras:
+  # canonical names used in every dataset and policy input
+  - {name: front, width: 640, height: 480, fps: 30, mount: world}
+  - {name: wrist, width: 640, height: 480, fps: 30, mount: gripper}

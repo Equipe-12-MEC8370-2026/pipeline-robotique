@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cta-learn"
+version = "0.1.0"
+description = "CTA robot-learning pipeline: human video -> task spec -> simulated robot demos -> policy -> robot."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# Learning stack (installed in .venv-learn, never in isaacsim-env).
+train = ["lerobot[dataset,training]==0.6.1"]
+dev = ["pytest>=8.0"]
+# Perception stack (installed in .venv-perception only; SAM 2 from the official repo, built with SAM2_BUILD_CUDA=0).
+perception = [
+    "mediapipe==1.2.3",
+    "SAM-2 @ git+https://github.com/facebookresearch/sam2@2b90b9f5ceec907a1c18123530e92e794ad901a4",
+    "av",
+    "pyyaml",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+cta_learn = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "sim: needs Isaac Sim / isaacsim-env",
+    "gpu: needs a CUDA GPU",
+    "robot: needs the physical robot",
+]
+addopts = "-m 'not sim and not gpu and not robot'"
