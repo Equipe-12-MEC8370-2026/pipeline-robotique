@@ -1,0 +1,26 @@
+# P2.4c — SAM 2 prompts for the two target parts in the TPV view of pair_20260831_113656 (set-up A).
+# Boxes in full-resolution clip pixels [x0, y0, x1, y1], placed by hand on gridded frames.
+# prompts: where SAM 2 is told what the object is (object visible, no hand on it). Each prompt is tracked
+#   over the whole clip, then the tracks are merged (non-empty first, then nearest prompt in time).
+#   The short piece needs 2 prompts: it is fully hidden behind the operator's arm and body from ~12 to ~17 s
+#   (taken from the rack and carried), which no single track survives.
+# check_start: where the part should be at the start (in the rack at the back of the table), identified from
+#   the final state (the rack piece missing at the end). NOT used as a prompt for the long piece, so it checks
+#   that backward tracking lands on the right part. For the short piece it IS the 2nd prompt: its identity
+#   then rests on the final-state reading (right-hand rack piece gone at the end, left one still there).
+
+pair: pair_20260831_113656
+view: tpv
+fps: 15
+height: 540
+chunk: 150          # frames per SAM 2 session (RAM: ~12.6 MB per frame on CPU)
+objects:
+  profile_short:
+    prompts:
+      - {t: 21.0, box: [710, 683, 872, 815]}   # lying alone on the table, front
+      - {t: 0.5, box: [915, 225, 975, 350]}    # in the rack (right-hand piece), before the pick
+    check_start: {t: 0.5, box: [915, 225, 975, 350]}
+  profile_long:
+    prompts:
+      - {t: 30.0, box: [740, 500, 825, 765]}   # standing on the short piece, hands away
+    check_start: {t: 0.5, box: [700, 130, 757, 315]}  # tall piece standing at the back left

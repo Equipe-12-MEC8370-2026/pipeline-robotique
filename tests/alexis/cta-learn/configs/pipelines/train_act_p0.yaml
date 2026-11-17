@@ -1,0 +1,30 @@
+# P0.4 — ACT on the P0 pick-and-place sim dataset (150 scripted demos, radians, 30 Hz).
+# Read by LeRobot 0.6.1's TrainPipelineConfig (draccus). Launch through scripts/train/train_act.py,
+# which checks dataset units first and resolves relative paths against the repo root.
+# Policy hyper-parameters left out = LeRobot ACT defaults (ResNet18 ImageNet, chunk 100, VAE, lr 1e-5).
+
+dataset:
+  repo_id: cta/p0_pickplace
+  root: data/datasets/p0_pickplace      # relative to cta-learn/
+  video_backend: pyav                   # torchcodec DLLs do not load on this Windows station
+  use_imagenet_stats: true
+
+policy:
+  type: act
+  device: cuda
+  push_to_hub: false
+  chunk_size: 100
+  n_action_steps: 100
+  use_vae: true
+
+output_dir: outputs/train/act_p0        # relative to cta-learn/; LeRobot refuses to overwrite it
+job_name: act_p0
+seed: 1000
+batch_size: 8
+num_workers: 4
+steps: 100000                           # set from the smoke-test speed before the full run
+log_freq: 200
+save_freq: 10000
+env_eval_freq: 0                        # sim evaluation is P0.5 (Isaac lives in another venv)
+wandb:
+  enable: false

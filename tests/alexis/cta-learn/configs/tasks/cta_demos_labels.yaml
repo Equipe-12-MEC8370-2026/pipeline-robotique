@@ -1,0 +1,83 @@
+# P2.2 — hand-written description of the 6 synced CTA demonstrations (data/clips/<pair>/).
+# DRAFT read from the contact sheets (outputs/p2_2/sheet_<pair>.jpg): times are clip times (s), +-1-2 s.
+# Status: "draft" until the user (or the CTA) confirms. Later use: reference labels to check the
+# automatic phase segmentation of M3 (P2.5), and the choice of the target task.
+#
+# Common pattern: every demo starts and ends with both hands open, palms shown (start/stop signal),
+# the operator stands on the right of the TPV view; objects come from a rack at the back of the table.
+
+status: draft
+# Target task chosen by the user on 2026-11-13 (« Profilé debout est bon »). Exact profiles, masses and CAD
+# do not matter yet: approximate dimensions, light enough for the SO-101, in simulation. What matters is
+# that the model reproduces the task. Real masses/CAD come later (possibly on a stronger CTA arm).
+target_pair: pair_20260831_113656
+pairs:
+  pair_20260831_113656:
+    task: "Poser un bout de profilé 40x40 (80 mm) à plat, puis poser un profilé 40x40 (~150 mm) debout dessus"
+    objects: [profile_short, profile_long]   # dimensions: configs/tasks/cta_profile_upright.yaml
+    arms: one hand most of the time (two hands briefly at ~19 s to orient the short piece)
+    phases:
+      - {t: [2, 11], what: "mains ouvertes (signal de départ)"}
+      - {t: [12, 18], what: "prendre le bout court au râtelier, l'apporter à l'avant", object: profile_short}
+      - {t: [18, 21], what: "l'orienter à deux mains et le poser à plat", object: profile_short}
+      - {t: [21, 26], what: "prendre le profilé long au râtelier, le poser debout sur le bout court", object: profile_long}
+      - {t: [27, 34], what: "mains ouvertes (fin)"}
+    robot_fit: "pick-and-place + réorientation (couché -> debout) + empilage ; faisable par le SO-101 avec des masses allégées (D9)"
+    corrected: "2026-11-13 (P2.3): le profilé long est posé debout SUR le bout court, pas à côté"
+
+  pair_20260831_113807:
+    task: "Limer (ébavurer) les arêtes d'un bloc d'aluminium"
+    objects: [block, file]
+    arms: two hands (one holds the block, the other files)
+    phases:
+      - {t: [3, 6], what: "mains ouvertes"}
+      - {t: [6, 13], what: "prendre le bloc au râtelier, le poser à l'avant"}
+      - {t: [14, 16], what: "prendre la lime"}
+      - {t: [17, 41], what: "limer les arêtes en tenant le bloc (plusieurs faces)"}
+      - {t: [42, 47], what: "poser la lime, mains ouvertes"}
+    robot_fit: "tâche de contact bimanuelle (un bras tient, l'autre travaille) -> P4/P5 ; bloc probablement trop lourd pour un SO-101"
+
+  pair_20260831_113952:
+    task: "Prendre une équerre aluminium, passer un foret à la main dans ses trous"
+    objects: [angle_bracket, drill_bit]
+    arms: two hands (one holds the bracket, the other the drill bit)
+    phases:
+      - {t: [2, 6], what: "mains ouvertes"}
+      - {t: [6, 10], what: "prendre l'équerre, la poser à l'avant"}
+      - {t: [11, 28], what: "prendre le foret, le passer dans les trous de l'équerre tenue en main"}
+      - {t: [29, 33], what: "reposer, mains ouvertes"}
+    robot_fit: "1re partie = pick-and-place simple ; la suite = insertion fine bimanuelle, hors de portée pour l'instant"
+
+  pair_20260831_114110:
+    task: "Prendre une équerre aluminium et y insérer/visser une petite vis"
+    objects: [angle_bracket, screw]
+    arms: two hands
+    phases:
+      - {t: [6, 9], what: "mains ouvertes"}
+      - {t: [9, 13], what: "prendre l'équerre, la poser à l'avant"}
+      - {t: [14, 17], what: "prendre la vis"}
+      - {t: [17, 24], what: "insérer/visser la vis dans l'équerre posée"}
+      - {t: [24, 28], what: "soulever l'équerre à deux mains, la contrôler, la reposer"}
+      - {t: [28, 29.3], what: "fin (l'opérateur s'éloigne ensuite)"}
+    corrected: "2026-11-13 (P2.4b): début 4 -> 6 s (en FPV, mains montrées à partir de ~6 s), fin 31 -> 29,3 s (l'opérateur s'éloigne), vérifié sur la planche d'images"
+    robot_fit: "pick-and-place puis insertion fine ; insertion hors de portée pour l'instant"
+
+  pair_20260831_114205:
+    task: "Enrouler du ruban adhésif (masquage) autour d'un bloc d'aluminium"
+    objects: [block, tape_roll]
+    arms: two hands (one holds the block, the other unrolls the tape)
+    phases:
+      - {t: [3, 6], what: "mains ouvertes"}
+      - {t: [6, 12], what: "prendre le bloc, le poser à l'avant"}
+      - {t: [13, 17], what: "prendre le rouleau de ruban"}
+      - {t: [18, 48], what: "appliquer le ruban autour du bloc tenu"}
+      - {t: [49, 53], what: "poser, mains ouvertes"}
+    robot_fit: "manipulation bimanuelle d'un objet déformable -> hors de portée (P5 au mieux)"
+
+  pair_20260831_114518:
+    task: "Pas de tâche : séquence de référence des mains le long d'un ruban à mesurer posé sur la table"
+    objects: [tape_measure]
+    arms: two hands (paumes en bas, en haut, poings, à différentes positions le long du ruban)
+    phases:
+      - {t: [1, 40], what: "mains posées le long du ruban, plusieurs poses"}
+    robot_fit: "aucune ; utile pour P2.3 (échelle de la table) et pour valider le suivi des mains (P2.4)"

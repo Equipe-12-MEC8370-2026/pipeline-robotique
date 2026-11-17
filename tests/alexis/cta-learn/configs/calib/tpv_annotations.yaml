@@ -1,0 +1,33 @@
+# P2.3 — hand-placed references for the TPV calibration (pixels of the 1920x1080 synced clips).
+# Rough segments are snapped to the real edge by cta_learn.video.calib.refine_line (band = search half-width).
+# The TPV webcam was moved once (≈ 90 px pan between pairs 113952 and 114110): two set-ups.
+# Set-up B carries the tape measure, so it is calibrated directly; set-up A is mapped onto B through the
+# table-plane homography between the two views (ORB matches on the table).
+
+reference_setup: B
+setups:
+  B:
+    frame: {pair: pair_20260831_114518, t: 0.5}
+    pairs: [pair_20260831_114110, pair_20260831_114205, pair_20260831_114518]
+    segments:            # axis: x = table depth (front -> back), y = along the front edge, z = vertical
+      x:right_edge: {p0: [1075, 985], p1: [1210, 345], band: 12}
+      x:tape_left:  {p0: [850, 972],  p1: [1010, 527], band: 5}
+      x:tape_right: {p0: [864, 972],  p1: [1024, 527], band: 5}
+      y:front_edge: {p0: [150, 893],  p1: [1000, 1000], band: 15}
+      y:back_edge:  {p0: [280, 200],  p1: [780, 248], band: 10}   # occluding contour against the robot table
+      z:rack_profile_left: {p0: [800, 150], p1: [808, 295], band: 5}
+      z:stanchion_left:    {p0: [1110, 70], p1: [1102, 270], band: 6}
+      z:stanchion_right:   {p0: [1207, 40], p1: [1196, 250], band: 6}
+    tape:                # read on the close-up FPV frame (pair 114518, t = 40.5 s), inches and cm agree
+      hook_px: [857, 972]        # hook over the table front edge = 0
+      case_px: [1017.5, 527]     # tape enters the case
+      length_m: 0.491            # 19 3/8 in = 49.1 cm
+    checks:
+      hole_px: [999, 640]        # table hole next to the tape, FPV reading 34.7 cm along the tape (±0.5)
+      hole_along_tape_m: 0.347
+      bolts_plate_near: [[446.3, 776.3], [418.8, 817.5]]   # the 2 bolts of each aluminium plate
+      bolts_plate_far:  [[677.5, 436.3], [662.5, 459.5]]   # (identical plates -> equal spacing)
+  A:
+    frame: {pair: pair_20260831_113656, t: 0.5}
+    pairs: [pair_20260831_113656, pair_20260831_113807, pair_20260831_113952]
+focal_search: {min: 1300, max: 3200, step: 10, bolt_rel_tol: 0.03, line_tol_deg: 1.0}

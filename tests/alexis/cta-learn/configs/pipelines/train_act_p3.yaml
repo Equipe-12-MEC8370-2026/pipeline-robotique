@@ -1,0 +1,31 @@
+# P3.4 — ACT on the P3 profile-stack sim dataset (500 scripted demos generated from the CTA TaskSpec, radians,
+# 30 Hz, ~750 frames each). Same policy settings as P0 (train_act_p0.yaml); only the data, the length and the
+# output change. Launch through scripts/train/train_act.py --config configs/pipelines/train_act_p3.yaml.
+# Steps: P0 did 100K steps = ~17 epochs of 47K frames; here 375K frames, so 100K steps = ~2 epochs.
+# The value below is set from the smoke-test speed (target: one night).
+
+dataset:
+  repo_id: cta/p3_profile_stack
+  root: data/datasets/p3_profile_stack  # relative to cta-learn/
+  video_backend: pyav                   # torchcodec DLLs do not load on this Windows station
+  use_imagenet_stats: true
+
+policy:
+  type: act
+  device: cuda
+  push_to_hub: false
+  chunk_size: 100
+  n_action_steps: 100
+  use_vae: true
+
+output_dir: outputs/train/act_p3        # relative to cta-learn/; LeRobot refuses to overwrite it
+job_name: act_p3
+seed: 1000
+batch_size: 8
+num_workers: 4
+steps: 200000
+log_freq: 200
+save_freq: 20000
+env_eval_freq: 0                        # sim evaluation is P3.5 (Isaac lives in another venv)
+wandb:
+  enable: false
