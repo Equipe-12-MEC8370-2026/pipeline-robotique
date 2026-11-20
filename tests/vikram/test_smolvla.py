@@ -1,12 +1,16 @@
 """
 Test LeRobot SmolVLA inference
+
+https://deepwiki.com/huggingface/lerobot/5.2-observation-and-action-processors
 """
 import sys
 sys.path.append("../")
 
+import numpy as np
 import torch
 from lerobot.policies import smolvla
 from lerobot.policies.utils import build_inference_frame
+from lerobot.lerobot_types import RobotObservation
 
 
 def test_smolvla():
@@ -20,15 +24,10 @@ def test_smolvla():
     device = torch.device("cuda")
     policy = smolvla.SmolVLAPolicy.from_pretrained(name)
 
-    #prepp, postp = smolvla.make_smolvla_pre_post_processors(policy.config)
+    prepp, postp = smolvla.make_smolvla_pre_post_processors(policy.config)
 
-    #obs = prepp("temp/camera_0.png")
-    #print(obs)
-
-    #obs_frame = build_inference_frame(
-    #    observation=obs, task=task, device=device
-    #)
-
+    obs = RobotObservation()
+    print(obs)
 
 
 if __name__ == "__main__":
