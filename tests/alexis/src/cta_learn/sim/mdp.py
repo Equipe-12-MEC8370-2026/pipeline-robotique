@@ -6,6 +6,7 @@ Quaternions are (x, y, z, w).
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 
 import torch
@@ -154,6 +155,96 @@ def jitter_camera_pose(
     cam.set_world_poses(pos, quat, env_ids=env_ids, convention="world")
 
 
+def jitter_attached_camera(
+    env,
+    env_ids: torch.Tensor | None,
+    camera_cfg: SceneEntityCfg,
+    nominal_pos: Sequence[float],
+    nominal_quat_ros: Sequence[float],
+    pos_range: float,
+    along_axis_range: float,
+    rot_range_deg: float,
+):
+    """Re-place a camera mounted on a robot link around its nominal LOCAL pose (parent-link frame, ROS convention:
+    +Z forward). Position: uniform cube +-pos_range plus +-along_axis_range along the optical axis; rotation: small
+    XYZ Euler angles +-rot_range_deg in the camera frame. Used for the P4 wrist camera, whose real pose is only
+    estimated (lens height, print and assembly tolerances)."""
+    import warp as wp
+    from isaaclab.utils.math import convert_camera_frame_orientation_convention
+
+    cam = env.scene[camera_cfg.name]
+    if env_ids is None:
+        env_ids = torch.arange(env.num_envs, device=env.device)
+    n = len(env_ids)
+    dev = env.device
+    q0 = torch.tensor(nominal_quat_ros, device=dev, dtype=torch.float32).repeat(n, 1)
+    fwd = math_utils.quat_apply(q0, torch.tensor([0.0, 0.0, 1.0], device=dev).repeat(n, 1))
+    pos = torch.tensor(nominal_pos, device=dev, dtype=torch.float32).repeat(n, 1)
+    pos += (torch.rand(n, 3, device=dev) * 2 - 1) * pos_range
+    pos += fwd * ((torch.rand(n, 1, device=dev) * 2 - 1) * along_axis_range)
+    ang = (torch.rand(n, 3, device=dev) * 2 - 1) * math.radians(rot_range_deg)
+    quat = math_utils.quat_mul(q0, math_utils.quat_from_euler_xyz(ang[:, 0], ang[:, 1], ang[:, 2]))
+    quat = convert_camera_frame_orientation_convention(quat, origin="ros", target="opengl")
+    cam._view.set_local_poses(  # noqa: SLF001 (Camera exposes no local-pose setter)
+        wp.from_torch(pos.contiguous(), dtype=wp.vec3f),
+        wp.from_torch(quat.contiguous(), dtype=wp.vec4f),
+        cam._resolve_env_ids_wp(env_ids),  # noqa: SLF001
+    )
+
+
+def randomize_mdl_color(
+    env,
+    env_ids: torch.Tensor | None,
+    shader_suffix: str,
+    input_name: str,
+    color_low: Sequence[float],
+    color_high: Sequence[float],
+):
+    """Set a colour input of ONE MDL shader (``/World/envs/env_<i>/<shader_suffix>``), e.g. the 3D-printed parts of the
+    SO-101 USD (OmniPBR ``diffuse_color_constant``), uniformly in [low, high] per channel."""
+    import omni.usd
+    from pxr import Gf, Sdf, UsdShade
+
+    stage = omni.usd.get_context().get_stage()
+    ids = range(env.num_envs) if env_ids is None else env_ids.tolist()
+    low, high = torch.tensor(color_low), torch.tensor(color_high)
+    for i in ids:
+        prim = stage.GetPrimAtPath(f"/World/envs/env_{i}/{shader_suffix}")
+        if not prim.IsValid():
+            raise RuntimeError(f"prim not found: /World/envs/env_{i}/{shader_suffix}")
+        rgb = (low + torch.rand(3) * (high - low)).tolist()
+        UsdShade.Shader(prim).CreateInput(input_name, Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*rgb))
+
+
+def randomize_texture_scale(
+    env,
+    env_ids: torch.Tensor | None,
+    prim_suffix: str,
+    brightness_range: tuple[float, float],
+    tint_range: float,
+):
+    """Multiply the colour of every UsdUVTexture under ``/World/envs/env_<i>/<prim_suffix>`` (``inputs:scale``):
+    one brightness factor for the 3 channels times a per-channel tint in [1 - tint_range, 1 + tint_range]."""
+    import omni.usd
+    from pxr import Gf, Usd, UsdShade
+
+    stage = omni.usd.get_context().get_stage()
+    ids = range(env.num_envs) if env_ids is None else env_ids.tolist()
+    for i in ids:
+        root = stage.GetPrimAtPath(f"/World/envs/env_{i}/{prim_suffix}")
+        if not root.IsValid():
+            raise RuntimeError(f"prim not found: /World/envs/env_{i}/{prim_suffix}")
+        b = brightness_range[0] + torch.rand(1).item() * (brightness_range[1] - brightness_range[0])
+        tint = (1 + (torch.rand(3) * 2 - 1) * tint_range).tolist()
+        done = 0
+        for prim in Usd.PrimRange(root):
+            if prim.IsA(UsdShade.Shader) and UsdShade.Shader(prim).GetShaderId() == "UsdUVTexture":
+                UsdShade.Shader(prim).GetInput("scale").Set(Gf.Vec4f(b * tint[0], b * tint[1], b * tint[2], 1.0))
+                done += 1
+        if not done:
+            raise RuntimeError(f"no UsdUVTexture under /World/envs/env_{i}/{prim_suffix}")
+
+
 def profile_stack_success(env, short_cfg: SceneEntityCfg, long_cfg: SceneEntityCfg, ee_frame_cfg: SceneEntityCfg,
                           layout: dict, max_speed: float = 0.05, max_ang_speed: float = 0.5,
                           hold_steps: int = 0) -> torch.Tensor:
@@ -245,3 +336,37 @@ def reset_articulations_to_default(env, env_ids: torch.Tensor) -> None:
         art.write_root_velocity_to_sim_index(root_velocity=vel, env_ids=env_ids)
         art.write_joint_position_to_sim_index(position=art.data.default_joint_pos.torch[env_ids].clone(), env_ids=env_ids)
         art.write_joint_velocity_to_sim_index(velocity=art.data.default_joint_vel.torch[env_ids].clone(), env_ids=env_ids)
+
+
+def taskspec_success(env, ee_frame_cfg: SceneEntityCfg, layout: dict, max_speed: float = 0.05,
+                     max_ang_speed: float = 0.5, hold_steps: int = 30) -> torch.Tensor:
+    """Generic success (any layout of cta_learn.retarget.layout): its goals met (task_success), every part at rest
+    and the gripper away, for ``hold_steps`` CONSECUTIVE calls (call once per env step). "At rest" is measured on
+    the pose change between two calls, as in profile_stack_success (PhysX velocities jitter for stacked parts)."""
+    from cta_learn.retarget.layout import task_success
+
+    names = list(layout["order"])
+    o = env.scene.env_origins
+    frame = env.scene[ee_frame_cfg.name]
+    tcp = frame.data.target_pos_w.torch[:, frame_index(frame, "tcp"), :] - o
+    pos = {n: env.scene[n].data.root_pos_w.torch - o for n in names}
+    quat = {n: env.scene[n].data.root_quat_w.torch for n in names}
+    zone = {n: torch.tensor(g["xyyaw"][:2], device=o.device).expand(o.shape[0], 2)
+            for n, g in layout["goals"].items() if g["relation"] == "on_table"}
+    ok, _ = task_success(pos, quat, tcp, zone, layout, torch)
+    pose = torch.cat([torch.cat([env.scene[n].data.root_pos_w.torch, quat[n]], 1) for n in names], 1)
+    key = "_taskspec_success_state"
+    prev, count = getattr(env, key, (None, None))
+    if prev is None or prev.shape != pose.shape:
+        prev, count = pose.clone(), torch.zeros(ok.shape, dtype=torch.int32, device=ok.device)
+    dt = env.step_dt
+    moved = torch.zeros_like(ok)
+    for k in range(len(names)):
+        p0 = 7 * k
+        dpos = torch.linalg.vector_norm(pose[:, p0:p0 + 3] - prev[:, p0:p0 + 3], dim=1)
+        dot = (pose[:, p0 + 3:p0 + 7] * prev[:, p0 + 3:p0 + 7]).sum(1).abs().clamp(max=1.0)
+        moved |= (dpos > max_speed * dt) | (2 * torch.acos(dot) > max_ang_speed * dt)
+    ok = ok & ~moved
+    count = torch.where(ok, count + 1, torch.zeros_like(count))
+    setattr(env, key, (pose.clone(), count))
+    return count >= max(hold_steps, 1)

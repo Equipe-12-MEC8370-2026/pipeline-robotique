@@ -1,0 +1,14 @@
+# Adaptation of the profile task to the SO-101 (reviewed by a human; read by cta_learn.retarget.layout).
+# Reproduces the decisions of the published P3 layout (configs/tasks/so101_profile_stack.yaml):
+#   D10 parts 25 mm section, 50 / 75 mm long, 20 / 25 g; D11 the short part starts lying (no tipping over).
+# Places and the goal zone: the defaults of cta_learn.retarget.layout (same values as P3).
+objects:
+  profile_short:
+    size_m: [0.05, 0.025, 0.025]
+    mass_kg: 0.02
+    start_posture: lying
+    start_posture_reason: "D11, no tipping over (hard for a 5-joint arm grasping from above)"
+    tol_posture_deg: 20.0
+  profile_long:
+    size_m: [0.075, 0.025, 0.025]
+    mass_kg: 0.025

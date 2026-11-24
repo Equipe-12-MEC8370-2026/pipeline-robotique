@@ -4,7 +4,8 @@
 -> data/perception/<pair>/masks_<object>.npz (packed bool masks at --height, 15 fps), outputs/p2_4/objects_report.json,
    outputs/p2_4/objects_<pair>.mp4
 Checks: tracked backward, each mask must land on its own part in the rack (box IoU with check_start); no mask
-jumps; the two parts' masks must not overlap (identity swap).
+jumps; no two parts' masks overlap (identity swap). Any number of parts; the report is written per pair
+(outputs/p2_4/objects_report_<pair>.json; the original pair keeps objects_report.json).
 """
 from __future__ import annotations
 
@@ -25,7 +26,7 @@ from cta_learn.video.ingest import ffbin
 
 MODELS = REPO_ROOT / "data" / "pretrained" / "perception"
 OUT = REPO_ROOT / "outputs" / "p2_4"
-COLORS = {"profile_short": (255, 140, 0), "profile_long": (0, 200, 255)}  # RGB
+PALETTE = [(255, 140, 0), (0, 200, 255), (80, 220, 80), (255, 0, 255)]  # RGB, one per part in config order
 
 
 def overlay(frames: list[Path], masks: dict[str, np.ndarray], fps: int, dst: Path) -> None:
@@ -35,15 +36,15 @@ def overlay(frames: list[Path], masks: dict[str, np.ndarray], fps: int, dst: Pat
                           stdin=subprocess.PIPE)
     for i, f in enumerate(frames):
         img = cv2.cvtColor(cv2.imread(str(f)), cv2.COLOR_BGR2RGB)
-        for name, m in masks.items():
+        for k, (name, m) in enumerate(masks.items()):
             mk = m[i]
-            col = np.array(COLORS.get(name, (255, 0, 255)))
+            col = np.array(PALETTE[k % len(PALETTE)])
             img[mk] = (0.45 * img[mk] + 0.55 * col).astype(np.uint8)
             cnts, _ = cv2.findContours(mk.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             cv2.drawContours(img, cnts, -1, tuple(int(c) for c in col), 2)
         y = 28
-        for name in masks:
-            cv2.putText(img, name, (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, tuple(int(c) for c in COLORS.get(name, (255, 0, 255))), 2)
+        for k, name in enumerate(masks):
+            cv2.putText(img, name, (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, tuple(int(c) for c in PALETTE[k % len(PALETTE)]), 2)
             y += 26
         cv2.putText(img, f"{i / fps:5.1f}s", (w - 110, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
         ff.stdin.write(img.tobytes())
@@ -96,16 +97,20 @@ def main() -> None:
               f"last seen at its start place {r['last_time_at_start_place_s']} s; jumps at "
               f"{[round(j / fps, 1) for j in r['jump_frames']]} s ({r['seconds']} s)")
     names = list(masks)
-    if len(names) == 2:
-        inter = (masks[names[0]] & masks[names[1]]).reshape(len(frames), -1).sum(1)
-        small = np.minimum(masks[names[0]].reshape(len(frames), -1).sum(1), masks[names[1]].reshape(len(frames), -1).sum(1))
-        frac = np.where(small > 0, inter / np.maximum(small, 1), 0.0)
+    if len(names) >= 2:
+        frac = np.zeros(len(frames))
+        for i, n0 in enumerate(names):
+            for n1 in names[i + 1:]:
+                inter = (masks[n0] & masks[n1]).reshape(len(frames), -1).sum(1)
+                small = np.minimum(masks[n0].reshape(len(frames), -1).sum(1), masks[n1].reshape(len(frames), -1).sum(1))
+                frac = np.maximum(frac, np.where(small > 0, inter / np.maximum(small, 1), 0.0))
         report["overlap_max_fraction"] = float(frac.max())
         report["frames_overlap_gt_20pct"] = [round(i / fps, 2) for i in np.flatnonzero(frac > 0.2)]
-        print(f"[objects] overlap between the two masks: max {frac.max():.1%} of the smaller one; "
+        print(f"[objects] overlap between masks: max {frac.max():.1%} of the smaller one; "
               f"frames > 20 %: {len(report['frames_overlap_gt_20pct'])}")
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "objects_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    rep_name = "objects_report.json" if pair == "pair_20260831_113656" else f"objects_report_{pair}.json"
+    (OUT / rep_name).write_text(json.dumps(report, indent=2), encoding="utf-8")
     overlay(frames, masks, fps, OUT / f"objects_{pair}.mp4")
     print(f"[objects] overlay -> {OUT / f'objects_{pair}.mp4'}")
 

@@ -1,0 +1,5 @@
+# Adaptation of the angle-block task to the SO-101 (reviewed by a human; read by cta_learn.retarget.layout).
+# Everything from the defaults (user decision 2026-11-18: « assume une taille raisonnable pour SO101 »):
+#   size scaled uniformly so the smallest side is 25 mm (the real block, ~71 x 69 x 62 mm, is too wide for the
+#   gripper); light mass; posture unknown in the video -> lying; start and goal zone = the P3 places.
+objects: {}

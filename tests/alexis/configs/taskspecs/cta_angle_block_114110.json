@@ -1,0 +1,112 @@
+{
+  "task_id": "cta_angle_block",
+  "instruction": {
+    "fr": "Prends l'équerre au râtelier et pose-la à l'avant de la table.",
+    "en": "Take the angle block from the rack and place it at the front of the table."
+  },
+  "frame": "table frame of data/calib/tpv.json (m, deg)",
+  "objects": [
+    {
+      "id": "angle_block",
+      "shape": "box",
+      "size_m": [
+        0.071,
+        0.069,
+        0.062
+      ],
+      "mass_kg": 0.03,
+      "initial": {
+        "x": 0.817,
+        "y": 0.0761,
+        "yaw_deg": 172.5,
+        "posture": "unknown",
+        "z_base": 0.0
+      },
+      "description": "machined aluminium angle block (equerre), chamfer and pocket"
+    }
+  ],
+  "steps": [
+    {
+      "index": 0,
+      "object": "angle_block",
+      "hand": "left",
+      "hand_confidence": 0.97,
+      "t_grasp": 8.0,
+      "t_release": 12.8,
+      "phases": [
+        {
+          "name": "reach",
+          "t": [
+            8.0,
+            8.0
+          ]
+        },
+        {
+          "name": "grasp",
+          "t": [
+            8.0,
+            8.07
+          ]
+        },
+        {
+          "name": "transport",
+          "t": [
+            8.07,
+            12.8
+          ]
+        },
+        {
+          "name": "retreat",
+          "t": [
+            12.8,
+            24.23
+          ]
+        }
+      ],
+      "goal": {
+        "pose": {
+          "x": 0.3646,
+          "y": 0.1671,
+          "yaw_deg": 179.5,
+          "posture": "unknown",
+          "z_base": 0.0
+        },
+        "relation": {
+          "type": "on_table",
+          "ref": null,
+          "offset_xy_m": null,
+          "yaw_rel_deg": null
+        },
+        "tolerance_xy_m": 0.02,
+        "tolerance_yaw_deg": 15.0
+      }
+    }
+  ],
+  "success": [
+    "angle_block on the table, released"
+  ],
+  "signals": {
+    "start": [
+      6.13,
+      8.73
+    ],
+    "end": [
+      24.23,
+      25.9
+    ]
+  },
+  "source": {
+    "pair": "pair_20260831_114110",
+    "views": [
+      "tpv",
+      "fpv"
+    ],
+    "objects_json_sha256_16": "3e175d8a72cc97ab",
+    "calibration": "data/calib/tpv.json (set-up B)",
+    "calib_sha256_16": "89fea673705798e1",
+    "parts": "configs/tasks/cta_angle_block.yaml (size measured on the video, light sim mass)",
+    "perception": "MediaPipe Hand Landmarker 1.2.3 + SAM 2.1 small (facebookresearch/sam2@2b90b9f5)",
+    "built_by": "scripts/task/build_taskspec.py"
+  },
+  "schema_version": "0.2"
+}

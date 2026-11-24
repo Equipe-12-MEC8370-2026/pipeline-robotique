@@ -9,7 +9,7 @@ Recovery demos (P0.6): inject a missed first grasp, record only from its detecti
     python scripts\\sim\\gen_demos.py --headless --enable_cameras --record --out data/raw/p0_recovery
         --inject_miss 0.015 0.025 --record_from_failure --successes 50 --attempts 120 --seed 3
 
-Run with isaacsim-env and PYTHONPATH=<repo>\\src (see README.md).
+Run with isaacsim-env and PYTHONPATH=<repo>\\src (see docs/HANDOFF.md).
 """
 
 from __future__ import annotations
@@ -31,6 +31,8 @@ parser.add_argument("--inject_miss", type=float, nargs=2, default=None, metavar=
 parser.add_argument("--record_from_failure", action="store_true",
                     help="start recording when the expert detects a missed grasp; episodes without one are dropped")
 parser.add_argument("--report", type=str, default="outputs/p0_3/gen_report.json")
+parser.add_argument("--variant", choices=["p0", "real"], default="p0",
+                    help="p0 = CTA-SO101-PickPlace-v0; real = CTA-SO101-PickPlaceReal-v0 (P4 look-alike scene)")
 AppLauncher.add_app_launcher_args(parser)
 args = parser.parse_args()
 app = AppLauncher(args).app
@@ -71,9 +73,13 @@ def resolve(p: str) -> Path:
 
 
 out_dir = resolve(args.out)
-debug_dir = REPO_ROOT / "outputs" / "p0_3" / "debug_episodes"
 report_path = resolve(args.report)
+debug_dir = report_path.parent / "debug_episodes"  # outputs/p0_3/debug_episodes with the default report
 report_path.parent.mkdir(parents=True, exist_ok=True)
+if args.variant == "real":
+    from cta_learn.sim.tasks.pick_place_real import TASK_DESCRIPTION, TASK_ID  # noqa: E402,F811
+    from cta_learn.sim.tasks.pick_place_real import PickPlaceRealEnvCfg as PickPlaceEnvCfg  # noqa: E402,F811
+
 
 cfg = PickPlaceEnvCfg()
 cfg.scene.num_envs = args.num_envs

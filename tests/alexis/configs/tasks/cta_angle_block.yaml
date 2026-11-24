@@ -1,0 +1,20 @@
+# 2nd CTA task (D13, 2026-11-18): pick the machined aluminium "equerre" (angle block) from the rack and place it at
+# the front of the table. Demo pair_20260831_114110 (set-up B). The screw of the demo is out of reach (insertion).
+# Size: no CAD; bounding box measured on the TPV masks by scripts/perception/measure_part.py
+# (outputs/p2_4/size_pair_20260831_114110_angle_block.json, mean box-fit IoU 0.944 over 5 frames, two places).
+# The part has a chamfer and a pocket: the box is an approximation (a few mm).
+# Robot scale: the real block is too wide for the SO-101 gripper; a scaled-down size reasonable for the SO-101 is
+# chosen at the adaptation step (user decision 2026-11-18: « assume une taille raisonnable pour SO101 »).
+
+source: {pair: pair_20260831_114110, calib: data/calib/tpv.json, setup: B}
+task_id: cta_angle_block
+parts_note: "size measured on the video, light sim mass"
+instruction:   # written by a human (validated at the TaskSpec review)
+  fr: "Prends l'équerre au râtelier et pose-la à l'avant de la table."
+  en: "Take the angle block from the rack and place it at the front of the table."
+objects:
+  angle_block:
+    description: "machined aluminium angle block (equerre), chamfer and pocket"
+    shape: box
+    size_m: [0.071, 0.069, 0.062]   # measured (see above), longest first
+    mass_kg: 0.03                   # real solid aluminium is much heavier; lightened for the SO-101 (as D9)

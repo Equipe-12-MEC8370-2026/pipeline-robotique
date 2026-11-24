@@ -5,7 +5,11 @@
 Per object: rest segments (pose x, y, yaw, posture, base height; stability over several frames) and moves
 between rests (grasp = first hand contact before the motion, release = last contact after it). During a move
 only the image path is kept: one fixed view gives no reliable height.
-Gate: final short-piece position vs the P2.3 measurement (1-2 cm), rest stability (sigma < 5 mm), order.
+Any parts: each is a box of the sizes given in the task config (any three sizes; see perception.poses), its posture
+= which axis is vertical. A raised base is tried on the top of every part seen at rest before (supports).
+Gate (generic): every part has a rest and a move, rest stability (sigma < 5 mm), grasps in the order the parts are
+listed in the task config; plus, when the task config gives them, the final position measured by hand
+(``final_pose.xy_m`` = centre of the front bottom edge, within 2 cm) and the final ``on_top_of`` relation.
 """
 from __future__ import annotations
 
@@ -20,11 +24,12 @@ import yaml
 from cta_learn import CONFIGS_DIR, REPO_ROOT
 from cta_learn.perception.hands import HandTrack
 from cta_learn.perception.objects import load_masks
-from cta_learn.perception.poses import (box_corners, box_extents, contact_frames, fit_box_pose, inside_footprint,
-                                       rest_segments, same_pose)
+from cta_learn.perception.poses import (box_corners, contact_frames, fit_box, inside_footprint, rest_segments,
+                                       same_pose, sorted_size)
 from cta_learn.video.calib import intrinsics, pose_from_homography, project, ray_to_height
 
 OUT = REPO_ROOT / "outputs" / "p2_4"
+PALETTE = [(0, 140, 255), (255, 200, 0), (80, 220, 80), (255, 80, 255)]  # BGR, one per part
 
 
 def main() -> None:
@@ -60,9 +65,9 @@ def main() -> None:
               "objects": {}}
     drawn, supports = {}, []
     for name, (m, _) in masks.items():
-        dims = task["objects"][name]["size_m"]
-        section, length = float(dims[1]), float(max(dims))
-        z_bases = (0.0, section) if name == "profile_long" else (0.0,)
+        size = sorted_size(task["objects"][name]["size_m"])
+        # raised bases: the tops of the parts already seen at rest (possible supports); the table otherwise
+        z_bases = (0.0,) + tuple(sorted({round(o["top"], 6) for o in supports}))
         area = m.reshape(T, -1).sum(1)
         cen = np.array([np.argwhere(mk).mean(0)[::-1] if a_ else [np.nan, np.nan] for mk, a_ in zip(m, area)])
         contact = contact_frames(m, hk)
@@ -82,7 +87,7 @@ def main() -> None:
                 low = np.argmax(ys)
                 init = ray_to_height(K, R, t, (xs[low], ys[low]), 0.0)[:2]
                 for zb in z_bases:
-                    by_zb[zb].append(fit_box_pose(m[i], K, R, t, section, length, init, z_bases=(zb,)))
+                    by_zb[zb].append(fit_box(m[i], K, R, t, size, init, z_bases=(zb,)))
             # base height: one fixed view barely separates "on a support at height h" from "on the table, further
             # back". Prefer a raised base only if the fit there rests on a known support (another part lying at
             # that time, top at h); otherwise the table.
@@ -98,28 +103,33 @@ def main() -> None:
                 if sup and iou_h >= iou_0 - a.zb_iou_tol:
                     zb = h
             fits = by_zb[zb]
-            ups = [f.upright for f in fits]
+            ups = [f.up_axis for f in fits]
             up = max(set(ups), key=ups.count)
-            sel = [f for f in fits if f.upright == up]
+            sel = [f for f in fits if f.up_axis == up]
             xy = np.array([[f.x, f.y] for f in sel])
-            per = 90.0 if up else 180.0
+            per = sel[0].yaw_period_deg
+            ext = list(sel[0].extents_m)
             yaws = np.array([f.yaw_deg for f in sel])
             ref = yaws[0]
             yaws = ref + ((yaws - ref + per / 2) % per - per / 2)  # unwrap around the first
             pose = {"x": float(np.median(xy[:, 0])), "y": float(np.median(xy[:, 1])), "yaw_deg": float(np.median(yaws) % per),
-                    "upright": bool(up), "z_base": float(zb), "iou_median": float(np.median([f.iou for f in sel]))}
+                    "upright": bool(sel[0].upright), "z_base": float(zb), "iou_median": float(np.median([f.iou for f in sel])),
+                    "up_axis": int(up), "extents_m": ext, "yaw_period_deg": per}
             if pose["iou_median"] < a.min_rest_iou:  # mask too partial (occluded part): not a reliable rest
                 uncertain.append({"t": [round(ra / fps, 2), round(rb / fps, 2)], "pose": pose})
                 continue
             rest_out.append({"_f": (ra, rb), "t": [round(ra / fps, 2), round(rb / fps, 2)], "pose": pose,
                              "xy_std_mm": float(np.linalg.norm(xy.std(0)) * 1000), "yaw_std_deg": float(yaws.std()),
                              "n_fits": len(sel), "n_fits_disagree": len(fits) - len(sel),
+                             # the fits of one rest disagree on which face is down: the silhouette of the box does not
+                             # tell (sizes too close, e.g. a near-cube); the posture then needs the part's real shape
+                             "posture_ambiguous": len(fits) != len(sel),
                              "contact_frac": float(contact[ra:rb + 1].mean()),
                              "iou_by_base": {str(k): float(np.median([f.iou for f in v])) for k, v in by_zb.items()}})
-            drawn.setdefault(name, []).append((rb, pose, section, length))
-            if not up:  # a lying part is a support for what may be put on it
-                supports.append({"t": [ra / fps, rb / fps], "top": section, "x": pose["x"], "y": pose["y"],
-                                 "yaw_deg": pose["yaw_deg"], "ext": box_extents(section, length, False)[:2].tolist()})
+            drawn.setdefault(name, []).append((rb, pose))
+            # a part at rest is a possible support for what is put on it later
+            supports.append({"t": [ra / fps, rb / fps], "top": zb + ext[2], "x": pose["x"], "y": pose["y"],
+                             "yaw_deg": pose["yaw_deg"], "ext": ext[:2]})
         # consecutive rests with the same pose = the part was only touched in between, not moved: merge them
         merged = []
         for r_ in rest_out:
@@ -154,32 +164,44 @@ def main() -> None:
         for r_ in rest_out:
             p = r_["pose"]
             print(f"   rest {r_['t'][0]:5.1f}-{r_['t'][1]:5.1f} s: x {p['x']:.3f} y {p['y']:.3f} yaw {p['yaw_deg']:5.1f} "
-                  f"{'UPRIGHT' if p['upright'] else 'lying'} base {p['z_base']:.2f} | IoU {p['iou_median']:.2f} "
-                  f"| sigma {r_['xy_std_mm']:.1f} mm, {r_['yaw_std_deg']:.1f} deg | fits {r_['n_fits']}/{r_['n_fits'] + r_['n_fits_disagree']}")
+                  f"{'UPRIGHT' if p['upright'] else 'lying'} (axis {p['up_axis']} up) base {p['z_base']:.2f} | IoU {p['iou_median']:.2f} "
+                  f"| sigma {r_['xy_std_mm']:.1f} mm, {r_['yaw_std_deg']:.1f} deg | fits {r_['n_fits']}/{r_['n_fits'] + r_['n_fits_disagree']}"
+                  + (" | POSTURE AMBIGUOUS" if r_["posture_ambiguous"] else ""))
         for mv in moves:
             print(f"   move: grasp {mv['t_grasp']} s, motion {mv['t_motion']} s, release {mv['t_release']} s, "
                   f"contact during motion {mv['contact_frac_during_motion']:.0%}")
-    # gate
-    gate = {}
-    sh = result["objects"]["profile_short"]["rests"][-1]["pose"]
-    ref = task["objects"]["profile_short"]["final_pose"]["xy_m"]  # P2.3: centre of the front bottom edge
-    c = box_corners(box_extents(0.04, 0.08, sh["upright"]), sh["x"], sh["y"], sh["yaw_deg"], 0.0)[:4]
+    # gate (generic)
+    objs = result["objects"]
+    gate = {"every_part_rests_and_moves": all(o["rests"] and o["moves"] for o in objs.values())}
+    all_rests = [r_ for o in objs.values() for r_ in o["rests"]]
+    gate["max_rest_sigma_mm"] = max(r_["xy_std_mm"] for r_ in all_rests) if all_rests else None
+    tg = {n: o["moves"][0]["t_grasp"] if o["moves"] else None for n, o in objs.items()}
+    listed = [n for n in task["objects"] if n in objs]
+    gate["grasp_order"] = sorted((n for n in tg if tg[n] is not None), key=tg.get)
+    gate["order_as_listed"] = gate["grasp_order"] == listed
+    ok = bool(gate["every_part_rests_and_moves"] and gate["max_rest_sigma_mm"] is not None
+              and gate["max_rest_sigma_mm"] < 5 and gate["order_as_listed"])
     C = -R.T @ t
-    # front bottom edge = the long bottom edge nearest the camera
-    edges = [(c[0], c[2]), (c[1], c[3]), (c[0], c[1]), (c[2], c[3])]
-    long_edges = sorted(edges, key=lambda e: -np.linalg.norm(e[0][:2] - e[1][:2]))[:2]
-    front = min(long_edges, key=lambda e: np.linalg.norm((e[0] + e[1])[:2] / 2 - C[:2]))
-    fm = (front[0] + front[1])[:2] / 2
-    gate["short_final_front_edge_xy"] = fm.round(4).tolist()
-    gate["short_final_vs_p23_mm"] = float(np.linalg.norm(fm - ref) * 1000)
-    gate["max_rest_sigma_mm"] = max(r_["xy_std_mm"] for o in result["objects"].values() for r_ in o["rests"])
-    tg = {n: o["moves"][0]["t_grasp"] if o["moves"] else None for n, o in result["objects"].items()}
-    gate["order_short_then_long"] = bool(tg["profile_short"] is not None and tg["profile_long"] is not None
-                                         and tg["profile_short"] < tg["profile_long"])
-    lg = result["objects"]["profile_long"]["rests"][-1]["pose"]
-    gate["long_final_upright_on_short"] = bool(lg["upright"] and lg["z_base"] > 0.02
-                                               and np.hypot(lg["x"] - sh["x"], lg["y"] - sh["y"]) < 0.05)
-    gate["pass"] = bool(gate["short_final_vs_p23_mm"] <= 20 and gate["max_rest_sigma_mm"] < 5 and gate["order_short_then_long"])
+    for name in listed:
+        fp = task["objects"][name].get("final_pose") or {}
+        if not objs[name]["rests"]:
+            continue
+        fin = objs[name]["rests"][-1]["pose"]
+        if "xy_m" in fp:  # hand measurement (P2.3): centre of the front bottom edge = long bottom edge nearest the camera
+            c = box_corners(np.array(fin["extents_m"]), fin["x"], fin["y"], fin["yaw_deg"], fin["z_base"])[:4]
+            edges = [(c[0], c[2]), (c[1], c[3]), (c[0], c[1]), (c[2], c[3])]
+            long_edges = sorted(edges, key=lambda e: -np.linalg.norm(e[0][:2] - e[1][:2]))[:2]
+            front = min(long_edges, key=lambda e: np.linalg.norm((e[0] + e[1])[:2] / 2 - C[:2]))
+            fm = (front[0] + front[1])[:2] / 2
+            gate[f"{name}_final_front_edge_xy"] = fm.round(4).tolist()
+            gate[f"{name}_final_vs_measured_mm"] = float(np.linalg.norm(fm - fp["xy_m"]) * 1000)
+            ok &= gate[f"{name}_final_vs_measured_mm"] <= 20
+        if fp.get("on_top_of") in objs and objs[fp["on_top_of"]]["rests"]:
+            ref = objs[fp["on_top_of"]]["rests"][-1]["pose"]
+            gate[f"{name}_final_on_{fp['on_top_of']}"] = bool(
+                fin["z_base"] > 0.02 and np.hypot(fin["x"] - ref["x"], fin["y"] - ref["y"]) < 0.05
+                and ("upright" not in fp or fin["upright"] == bool(fp["upright"])))
+    gate["pass"] = bool(ok)
     result["gate"] = gate
     (d / "objects.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
     print(f"[traj] gate: {gate}")
@@ -189,12 +211,12 @@ def main() -> None:
     tiles = []
     for fi in (0, T - 1):
         img = cv2.imread(str(frames[fi]))
-        for name, lst in drawn.items():
-            col = (0, 140, 255) if name == "profile_short" else (255, 200, 0)
-            for rb, p, s_, L_ in lst:
+        for k, (name, lst) in enumerate(drawn.items()):
+            col = PALETTE[k % len(PALETTE)]
+            for rb, p in lst:
                 if (fi == 0 and rb != lst[0][0]) or (fi == T - 1 and rb != lst[-1][0]):
                     continue
-                cs = project(K, R, t, box_corners(box_extents(s_, L_, p["upright"]), p["x"], p["y"], p["yaw_deg"], p["z_base"]))
+                cs = project(K, R, t, box_corners(np.array(p["extents_m"]), p["x"], p["y"], p["yaw_deg"], p["z_base"]))
                 for i, j in [(0, 1), (1, 3), (3, 2), (2, 0), (4, 5), (5, 7), (7, 6), (6, 4), (0, 4), (1, 5), (2, 6), (3, 7)]:
                     cv2.line(img, tuple(cs[i].astype(int)), tuple(cs[j].astype(int)), col, 2, cv2.LINE_AA)
         cv2.putText(img, f"{fi / fps:.1f} s: fitted boxes", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)

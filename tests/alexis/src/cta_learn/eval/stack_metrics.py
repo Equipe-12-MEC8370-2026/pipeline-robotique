@@ -14,22 +14,23 @@ KEYS = ("x", "y", "yaw")
 LIFT_THRESHOLD = 0.015   # m: a part whose bottom rose this much was picked up
 
 
-def boxes(layout: dict, key: str) -> dict:
+def boxes(layout: dict, key: str, parts=PARTS) -> dict:
     """{part: {"x": (lo, hi), "y": ..., "yaw": ...}} half-ranges of the layout as symmetric boxes."""
-    return {p: {k: (-layout["objects"][p][key][i], layout["objects"][p][key][i]) for i, k in enumerate(KEYS)} for p in PARTS}
+    return {p: {k: (-layout["objects"][p][key][i], layout["objects"][p][key][i]) for i, k in enumerate(KEYS)} for p in parts}
 
 
 def _sample(rng, box) -> dict:
-    return {p: {k: float(rng.uniform(*box[p][k])) for k in KEYS} for p in PARTS}
+    return {p: {k: float(rng.uniform(*box[p][k])) for k in KEYS} for p in box}
 
 
 def _inside(sample, box) -> bool:
-    return all(box[p][k][0] <= sample[p][k] <= box[p][k][1] for p in PARTS for k in KEYS)
+    return all(box[p][k][0] <= sample[p][k] <= box[p][k][1] for p in box for k in KEYS)
 
 
-def make_stack_trials(layout: dict, n_train: int, n_ood: int, seed: int) -> list[dict]:
+def make_stack_trials(layout: dict, n_train: int, n_ood: int, seed: int, parts=PARTS) -> list[dict]:
+    """Trials for any layout: ``parts`` = its part names (default: the profile task, as in P3)."""
     rng = np.random.default_rng(seed)
-    train, ood = boxes(layout, "range"), boxes(layout, "range_ood")
+    train, ood = boxes(layout, "range", parts), boxes(layout, "range_ood", parts)
     trials = [{"trial": i, "split": "train_range", "offsets": _sample(rng, train)} for i in range(n_train)]
     for i in range(n_ood):
         while True:
@@ -63,3 +64,23 @@ def classify_stack_outcome(success: bool, dropped: dict, lifted: dict, final_che
     if not final_checks["long_on_short"]:
         return "held_at_timeout" if holding_final else "long_not_on_short"
     return "stack_not_released"   # stack right, but the gripper stayed within 5 cm or the parts kept moving
+
+
+def classify_task_outcome(success: bool, order: list[str], dropped: dict, lifted: dict, final_checks: dict,
+                          expert_failure: str | None = None) -> str:
+    """Generic outcome name (any layout, checks of retarget.layout.task_success on the last state), in task order:
+    success · <part>_dropped · <part>_never_lifted · <first failed check, e.g. block_in_zone> · not_released."""
+    if success:
+        return "success"
+    if expert_failure:
+        return f"expert_{expert_failure}"
+    for p in order:
+        if dropped.get(p):
+            return f"{p}_dropped"
+    for p in order:
+        if not lifted.get(p):
+            return f"{p}_never_lifted"
+        for k, v in final_checks.items():
+            if k.startswith(p + "_") and not v:
+                return k
+    return "not_released" if not final_checks.get("released", True) else "not_at_rest"

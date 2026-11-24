@@ -1,17 +1,23 @@
 # P2.3 — target task objects (D9: approximate dimensions, light masses for the SO-101, simulation only).
 # Measured on the TPV view of pair_20260831_113656 (t = 34.5 s, final state) with data/calib/tpv.json
-# (set-up A). Exact CTA parts / CAD / masses come later.
+# (set-up A): see docs/HANDOFF.md, P2.3. Exact CTA parts / CAD / masses come later.
 #
 # Final state of the demo: the SHORT piece lies flat on the table, the LONG piece stands upright on top of it.
 
 source: {pair: pair_20260831_113656, t_final_s: 34.5, calib: data/calib/tpv.json, setup: A}
+task_id: cta_profile_upright
+instruction:   # written by a human (validated at the TaskSpec review)
+  fr: "Pose le bout de profilé court à plat, puis pose le profilé long debout dessus."
+  en: "Lay the short aluminium profile flat, then stand the long profile upright on top of it."
 objects:
   profile_short:
+    description: "aluminium T-slot profile 40x40, 80 mm"
     shape: box                      # T-slot profile approximated by its bounding box
     size_m: [0.080, 0.040, 0.040]   # length x section x section; length 80.2 mm measured on the table
     mass_kg: 0.05                   # real aluminium ~0.12 kg; lightened for the SO-101 (D9)
     final_pose: {lying: true, xy_m: [0.138, 0.158], note: "centre of its front bottom edge, table frame"}
   profile_long:
+    description: "aluminium T-slot profile 40x40, ~150 mm"
     shape: box
     size_m: [0.040, 0.040, 0.150]   # section 40 mm (top face measured 40/40/37/35 mm), length ~147 mm
     mass_kg: 0.08                   # real ~0.22 kg; lightened for the SO-101 (D9)

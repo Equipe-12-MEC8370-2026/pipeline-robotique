@@ -5,7 +5,7 @@ Gate (P3.2, no recording, success-rate report + debug videos of the first attemp
 Generation (P3.3, keep successes only, raw format -> data/raw/p3_profile_stack):
     python scripts\\sim\\gen_profile_demos.py --headless --enable_cameras --record --successes 500 --attempts 700 --seed 1
 
-Run with isaacsim-env and PYTHONPATH=<repo>\\src (see README.md). num_envs=1 by default: the reset event
+Run with isaacsim-env and PYTHONPATH=<repo>\\src (see docs/HANDOFF.md). num_envs=1 by default: the reset event
 mdp.break_rigid_contacts adds one physics step to the envs not being reset (none with a single env).
 """
 from __future__ import annotations

@@ -37,7 +37,7 @@ Relevé le 2026-11-11 sur la station de développement (lecture seule des instal
 | num2words | 0.5.14 (extra `smolvla`) |
 | pytest | voir `pip freeze` |
 
-Recréer : voir le README.
+Recréer : voir `docs/HANDOFF.md`, section « Commandes ».
 
 ## Runtime perception — `.venv-perception` (propre au projet, créé le 2026-11-13, P2.4a)
 
