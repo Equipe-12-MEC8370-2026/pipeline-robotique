@@ -26,6 +26,37 @@ Versions exactes : `docs/versions.md`.
 $env:PYTHONPATH = "$PWD\src"; & ..\isaacsim-env\Scripts\python.exe scripts\check_sim_env.py
 ```
 
+## Scènes Isaac Lab
+
+| ID | Fichier | Contenu |
+| --- | --- | --- |
+| `CTA-SO101-PickPlace-v0` | `src/cta_learn/sim/tasks/pick_place.py` | P0 : cube rouge → zone verte (démo du 20 nov.) |
+| `CTA-SO101-PickPlaceReal-v0` | `src/cta_learn/sim/tasks/pick_place_real.py` | **P4 (nouveau)** : même tâche, aspect du montage réel |
+| `CTA-SO101-ProfileStack-v0` | `src/cta_learn/sim/tasks/profile_stack.py` | P3 : profilés (démo CTA 113656) |
+| `CTA-SO101-TaskSpec-v0` | `src/cta_learn/sim/tasks/taskspec_task.py` | scène générique créée depuis une TaskSpec (`CTA_LAYOUT`) |
+
+### P4 : scène « comme le réel » (premier essai sur le vrai SO-101)
+
+- Support de caméra poignet imprimé (`assets/props/camera_mount_v2.usd`, voir `assets/props/NOTICE.md`) posé sur la
+  seule paire de trous M3 de la pince (`scripts/sim/fit_wrist_mount.py`) ; caméra poignet au centre du support
+  (`src/cta_learn/sim/wrist_mount.py`), pose légèrement variée à chaque épisode.
+- Robot blanc, cube orange, zone blanche (papier), table en bois ; caméra externe rapprochée
+  (œil (0,40 ; 0 ; 0,38) m, visée (0,22 ; 0,02 ; 0), 90° horizontal).
+- Les vraies caméras (Waveshare IMX335, fisheye 175°) seront redressées vers ces caméras sans distorsion.
+
+```powershell
+# Images de contrôle (avant, poignet, gros plans du support) -> outputs\p4_1\scene_check\
+$env:PYTHONPATH = "$PWD\src"; & ..\isaacsim-env\Scripts\python.exe scripts\sim\check_real_scene.py --headless --enable_cameras
+# Expert scripté, 20 essais + 3 vidéos (--variant real ; sans l'option : scène P0)
+$env:PYTHONPATH = "$PWD\src"; & ..\isaacsim-env\Scripts\python.exe scripts\sim\gen_demos.py --headless --enable_cameras --variant real --attempts 20 --debug_videos 3 --report outputs\p4_1\gate.json
+# Chaîne complète (Git Bash) : 200 démos -> dataset LeRobot -> ACT 100K pas -> évaluation sur 50 essais
+bash scripts/pipelines/p4_real_chain.sh 200
+```
+
+## Interface locale
+
+`Lancer_interface.bat` ouvre l'interface Streamlit (`app/`, guide `app/README.md`, environnement `.venv-app`).
+
 ## Structure
 
 ```text

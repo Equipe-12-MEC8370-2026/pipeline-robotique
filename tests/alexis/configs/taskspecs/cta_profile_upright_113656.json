@@ -157,12 +157,12 @@
       "tpv",
       "fpv"
     ],
-    "objects_json_sha256_16": "04f847d655a8fef0",
+    "objects_json_sha256_16": "88f1f361cf282ad6",
     "calibration": "data/calib/tpv.json (set-up A)",
     "calib_sha256_16": "89fea673705798e1",
     "parts": "configs/tasks/cta_profile_upright.yaml (approximate dims, light sim masses, D9)",
     "perception": "MediaPipe Hand Landmarker 1.2.3 + SAM 2.1 small (facebookresearch/sam2@2b90b9f5)",
     "built_by": "scripts/task/build_taskspec.py"
   },
-  "schema_version": "0.1"
+  "schema_version": "0.2"
 }

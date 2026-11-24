@@ -54,7 +54,7 @@ pairs:
     arms: two hands
     phases:
       - {t: [6, 9], what: "mains ouvertes"}
-      - {t: [9, 13], what: "prendre l'équerre, la poser à l'avant"}
+      - {t: [9, 13], what: "prendre l'équerre, la poser à l'avant", object: angle_block}
       - {t: [14, 17], what: "prendre la vis"}
       - {t: [17, 24], what: "insérer/visser la vis dans l'équerre posée"}
       - {t: [24, 28], what: "soulever l'équerre à deux mains, la contrôler, la reposer"}

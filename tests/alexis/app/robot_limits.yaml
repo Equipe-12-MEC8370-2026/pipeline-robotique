@@ -1,0 +1,5 @@
+# Limits of the robot used by the interface to check the parts (page « Pièces »).
+# Temporary: the SO-101 (simulation) until the target robot is chosen; then put its gripper and payload here.
+robot: SO-101
+gripper_max_width_m: 0.035   # widest part side the gripper closes on (cta_learn.datagen.gestures.GRIPPER_MAX_WIDTH)
+payload_kg: null             # maximum mass the arm carries: to fill from the robot's datasheet

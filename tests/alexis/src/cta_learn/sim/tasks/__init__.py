@@ -28,3 +28,21 @@ gym.register(
     kwargs={"env_cfg_entry_point": "cta_learn.sim.tasks.profile_stack_mimic:ProfileStackMimicEnvCfg"},
     disable_env_checker=True,
 )
+
+from cta_learn.sim.tasks.taskspec_task import TASK_ID as TASKSPEC_ID  # noqa: E402
+
+gym.register(
+    id=TASKSPEC_ID,
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    kwargs={"env_cfg_entry_point": "cta_learn.sim.tasks.taskspec_task:TaskSpecEnvCfg"},
+    disable_env_checker=True,
+)
+
+from cta_learn.sim.tasks.pick_place_real import TASK_ID as PICK_PLACE_REAL_ID  # noqa: E402
+
+gym.register(
+    id=PICK_PLACE_REAL_ID,
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    kwargs={"env_cfg_entry_point": "cta_learn.sim.tasks.pick_place_real:PickPlaceRealEnvCfg"},
+    disable_env_checker=True,
+)

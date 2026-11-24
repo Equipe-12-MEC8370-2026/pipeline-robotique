@@ -66,3 +66,27 @@ def test_same_pose_and_footprint():
     assert inside_footprint(0.16, 0.155, sup)
     assert inside_footprint(0.155, 0.19, sup) and not inside_footprint(0.19, 0.157, sup)
     assert inside_footprint(0.18, 0.157, sup, margin=0.01)
+
+
+def test_postures_of_a_box():
+    from cta_learn.perception.poses import distinct_up_axes, posture_extents, yaw_period
+    assert distinct_up_axes((0.04, 0.08, 0.04)) == [2, 0]            # profile: lying, upright
+    assert distinct_up_axes((0.05, 0.07, 0.06)) == [2, 1, 0]         # three different sizes
+    assert distinct_up_axes((0.05, 0.05, 0.05)) == [2]               # cube: one posture
+    assert posture_extents((0.05, 0.07, 0.06), 1).tolist() == [0.07, 0.05, 0.06]
+    assert yaw_period(posture_extents((0.04, 0.08, 0.04), 0)) == 90.0
+    assert yaw_period(posture_extents((0.05, 0.07, 0.06), 0)) == 180.0
+
+
+@pytest.mark.parametrize("up,yaw", [(0, 25.0), (1, 70.0), (2, 140.0)])
+def test_fit_box_three_sizes(up, yaw):
+    from cta_learn.perception.poses import fit_box, posture_extents
+    K, R, t = _cam()
+    size = (0.045, 0.07, 0.055)
+    true = (0.22, 0.31, yaw)
+    mask = silhouette(K, R, t, box_corners(posture_extents(size, up), *true, 0.0), (540, 960))
+    p = fit_box(mask, K, R, t, size, init_xy=(0.25, 0.27))
+    assert p.up_axis == up and p.yaw_period_deg == 180.0 and p.upright == (up == 0)
+    assert abs(p.x - true[0]) < 0.004 and abs(p.y - true[1]) < 0.004
+    d = abs((p.yaw_deg - yaw + 90) % 180 - 90)
+    assert d < 2.0 and p.iou > 0.95

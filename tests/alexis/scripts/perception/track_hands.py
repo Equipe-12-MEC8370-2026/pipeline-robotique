@@ -75,7 +75,10 @@ def main() -> None:
     rep_path = OUT / "hands_report.json"
     report = json.loads(rep_path.read_text(encoding="utf-8")) if rep_path.exists() else {}
     for pair in pairs:
-        intervals = [tuple(ph["t"]) for ph in labels[pair]["phases"]]
+        if pair in labels:
+            intervals = [tuple(ph["t"]) for ph in labels[pair]["phases"]]
+        else:  # a new video (interface upload): no hand labels, the whole clip counts
+            intervals = [(0.0, 1e9)]
         for v in a.views:
             dst = PERC / pair / f"hands_{v}.npz"
             t0 = time.time()
@@ -91,10 +94,10 @@ def main() -> None:
                  "rate_two_in_phases": detection_rate(n, tr.t_s, intervals, 2),
                  "per_phase_any": [{"t": list(iv), "rate": detection_rate(n, tr.t_s, [iv], 1)} for iv in intervals],
                  "mean_score": float(tr.score[tr.score > 0].mean()) if (tr.score > 0).any() else 0.0}
-            r["pass"] = bool(r["rate_any_in_phases"] >= GATE)
+            r["pass"] = bool(r["rate_any_in_phases"] >= GATE) if pair in labels else None  # no labels: no gate
             report.setdefault(pair, {})[v] = r
             print(f"[hands] {pair} {v}: {r['frames']} frames in {r['seconds']} s | >=1 hand in phases "
-                  f"{r['rate_any_in_phases']:.1%} (2 hands {r['rate_two_in_phases']:.1%}) | {'PASS' if r['pass'] else 'FAIL'}")
+                  f"{r['rate_any_in_phases']:.1%} (2 hands {r['rate_two_in_phases']:.1%}) | {'PASS' if r['pass'] else 'FAIL' if r['pass'] is not None else 'no hand labels: rate over the whole clip'}")
             rep_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
     for pair in a.overlay or []:
         if all((PERC / pair / f"hands_{v}.npz").exists() for v in ("tpv", "fpv")):

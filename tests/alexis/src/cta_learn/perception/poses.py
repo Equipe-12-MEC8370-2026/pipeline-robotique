@@ -1,11 +1,13 @@
 """M2 — metric poses of box-like parts on the table from a single fixed view (TPV) + its calibration.
 
-A part is a box (profile: section s × s, length L). Resting on the table it is either LYING (extents L, s, s,
-long axis horizontal at yaw) or UPRIGHT (s, s, L), its base at height z_base (0 on the table, s when stacked
-on a lying profile). Its pose (x, y, yaw, posture, z_base) is found by maximising the IoU between the observed
-mask and the silhouette of the box projected with the calibrated camera (convex hull of the 8 corners),
-coarse-to-fine grid search. Table frame of data/calib/tpv.json: origin front-right corner, x back, y left, z up.
-Pure numpy + OpenCV.
+A part is approximated by its bounding box of sizes a >= b >= c (any three; a profile is (L, s, s)). Resting on
+the table, one of its axes is vertical (``up_axis``: 0 = longest, 1 = middle, 2 = shortest; equal sizes give the
+same posture, so a profile has two: lying or upright). The two other sizes are horizontal, longest along the
+local x at ``yaw`` (period 180 deg, 90 deg when they are equal). The base is at height z_base (0 on the table, the
+top of a support when stacked). The pose is found by maximising the IoU between the observed mask and the
+silhouette of the box projected with the calibrated camera (convex hull of the 8 corners), coarse-to-fine grid
+search. A box cannot tell the two ends of an asymmetric part apart: that needs its real shape (CAD).
+Table frame of data/calib/tpv.json: origin front-right corner, x back, y left, z up. Pure numpy + OpenCV.
 """
 from __future__ import annotations
 
@@ -22,16 +24,56 @@ class BoxPose:
     x: float
     y: float
     yaw_deg: float
-    upright: bool
+    upright: bool               # the longest size is vertical
     z_base: float
     iou: float
+    up_axis: int = -1           # which of the sorted sizes (0 longest .. 2 shortest) is vertical
+    extents_m: tuple = ()       # (along local x, along local y, vertical) at this posture
+    yaw_period_deg: float = 180.0
 
     def to_dict(self) -> dict:
         return asdict(self)
 
 
 def box_extents(section: float, length: float, upright: bool) -> np.ndarray:
+    """Profile (section s x s, length L): extents lying or upright."""
     return np.array([section, section, length]) if upright else np.array([length, section, section])
+
+
+def sorted_size(size_m) -> np.ndarray:
+    """Box sizes, longest first."""
+    d = np.sort(np.asarray(size_m, float))[::-1]
+    if d.shape != (3,) or d.min() <= 0:
+        raise ValueError("size_m must be 3 positive numbers")
+    return d
+
+
+def distinct_up_axes(size_m, tol: float = 1e-6) -> list[int]:
+    """Resting postures that look different (equal sizes give the same posture), shortest-vertical first.
+    Profile (L, s, s) -> [2 (lying), 0 (upright)]; a box with three different sizes -> [2, 1, 0]."""
+    d = sorted_size(size_m)
+    out: list[int] = []
+    for i in (2, 1, 0):
+        if not any(abs(d[i] - d[j]) < tol for j in out):
+            out.append(i)
+    return out
+
+
+def posture_extents(size_m, up_axis: int) -> np.ndarray:
+    """(ex, ey, ez): the vertical size is sorted_size[up_axis], the other two horizontal, longest along x."""
+    d = sorted_size(size_m)
+    hor = [d[i] for i in range(3) if i != up_axis]
+    return np.array([max(hor), min(hor), d[up_axis]])
+
+
+def yaw_period(ext, tol: float = 1e-6) -> float:
+    """Yaw symmetry of a box seen from above: 90 deg for a square footprint, else 180 deg."""
+    return 90.0 if abs(ext[0] - ext[1]) < tol else 180.0
+
+
+def is_upright(size_m, up_axis: int, tol: float = 1e-6) -> bool:
+    d = sorted_size(size_m)
+    return bool(up_axis == 0 and d[0] - d[1] > tol)
 
 
 def box_corners(ext: np.ndarray, x: float, y: float, yaw_deg: float, z_base: float) -> np.ndarray:
@@ -57,9 +99,10 @@ def iou(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.logical_and(a, b).sum() / u) if u else 0.0
 
 
-def fit_box_pose(mask: np.ndarray, K, R, t, section: float, length: float, init_xy, *,
-                 postures=(False, True), z_bases=(0.0,), xy_window: float = 0.08, margin_px: int = 40) -> BoxPose:
-    """Best (x, y, yaw, posture, z_base) for ``mask`` (bool, image of K's size). init_xy: rough table point."""
+def fit_box(mask: np.ndarray, K, R, t, size_m, init_xy, *, up_axes=None, z_bases=(0.0,),
+            xy_window: float = 0.08, margin_px: int = 40) -> BoxPose:
+    """Best (x, y, yaw, up_axis, z_base) for ``mask`` (bool, image of K's size), box of sizes ``size_m`` (any
+    order). init_xy: rough table point. up_axes: postures tried (default: all distinct ones)."""
     ys, xs = np.nonzero(mask)
     if xs.size == 0:
         raise ValueError("empty mask")
@@ -67,15 +110,17 @@ def fit_box_pose(mask: np.ndarray, K, R, t, section: float, length: float, init_
     x1, y1 = min(xs.max() + margin_px, mask.shape[1]), min(ys.max() + margin_px, mask.shape[0])
     crop = mask[y0:y1, x0:x1]
     shp, off = crop.shape, (x0, y0)
+    axes = distinct_up_axes(size_m) if up_axes is None else list(up_axes)
+    exts = {u: posture_extents(size_m, u) for u in axes}
 
     def score(px, py, yaw, up, zb):
-        return iou(crop, silhouette(K, R, t, box_corners(box_extents(section, length, up), px, py, yaw, zb), shp, off))
+        return iou(crop, silhouette(K, R, t, box_corners(exts[up], px, py, yaw, zb), shp, off))
 
     best = (-1.0, None)
-    # coarse: 1 cm, 10 deg (yaw period 180 deg, 90 deg for the square section of an upright part)
-    for up in postures:
+    # coarse: 1 cm, 10 deg over one yaw period of the posture
+    for up in axes:
         for zb in z_bases:
-            yaws = np.arange(0, 90 if up else 180, 10.0)
+            yaws = np.arange(0, yaw_period(exts[up]), 10.0)
             for px in init_xy[0] + np.arange(-xy_window, xy_window + 1e-9, 0.01):
                 for py in init_xy[1] + np.arange(-xy_window, xy_window + 1e-9, 0.01):
                     for yaw in yaws:
@@ -92,7 +137,16 @@ def fit_box_pose(mask: np.ndarray, K, R, t, section: float, length: float, init_
                     if s > best[0]:
                         best = (s, (px, py, yaw, up, zb))
     s, (bx, by, byaw, up, zb) = best
-    return BoxPose(float(bx), float(by), float(byaw % (90 if up else 180)), bool(up), float(zb), float(s))
+    per = yaw_period(exts[up])
+    return BoxPose(float(bx), float(by), float(byaw % per), is_upright(size_m, up), float(zb), float(s),
+                   int(up), tuple(float(v) for v in exts[up]), per)
+
+
+def fit_box_pose(mask: np.ndarray, K, R, t, section: float, length: float, init_xy, *,
+                 postures=(False, True), z_bases=(0.0,), xy_window: float = 0.08, margin_px: int = 40) -> BoxPose:
+    """Profile version of :func:`fit_box` (section s x s, length L; postures False = lying, True = upright)."""
+    return fit_box(mask, K, R, t, (length, section, section), init_xy, up_axes=[0 if p else 2 for p in postures],
+                   z_bases=z_bases, xy_window=xy_window, margin_px=margin_px)
 
 
 def rest_segments(centroids: np.ndarray, fps: float, speed_px: float = 1.0, min_s: float = 0.5,
@@ -140,9 +194,11 @@ def contact_frames(mask_seq: np.ndarray, hand_kp_px: np.ndarray, dilate_px: int 
 
 
 def same_pose(p: dict, q: dict, tol_m: float = 0.01, tol_deg: float = 5.0) -> bool:
-    if p["upright"] != q["upright"] or abs(p["z_base"] - q["z_base"]) > 1e-6:
+    """Same rest pose (posture, base, position, yaw modulo the box symmetry). Pose dicts of object_trajectories;
+    ``up_axis`` / ``yaw_period_deg`` when present, else the profile convention (upright -> 90 deg)."""
+    if p["upright"] != q["upright"] or p.get("up_axis") != q.get("up_axis") or abs(p["z_base"] - q["z_base"]) > 1e-6:
         return False
-    per = 90.0 if p["upright"] else 180.0
+    per = p.get("yaw_period_deg", 90.0 if p["upright"] else 180.0)
     dyaw = abs((p["yaw_deg"] - q["yaw_deg"] + per / 2) % per - per / 2)
     return bool(np.hypot(p["x"] - q["x"], p["y"] - q["y"]) < tol_m and dyaw < tol_deg)
 

@@ -1,0 +1,32 @@
+# P4 — ACT on the "real-looking" cube task (CTA-SO101-PickPlaceReal-v0): orange cube, white paper zone, wooden
+# table, white arm, wrist camera at the centre of the printed mount (jittered per episode). Same hyper-parameters as
+# P0 (train_act_p0.yaml: 46/50 in sim) + LeRobot's image augmentation (brightness, contrast, saturation, hue,
+# sharpness, small affine; up to 3 per sample), added for the sim -> real gap (first real-robot trial, 2026-11-25).
+
+dataset:
+  repo_id: cta/p4_pickplace_real
+  root: data/datasets/p4_pickplace_real   # relative to cta-learn/
+  video_backend: pyav                     # torchcodec DLLs do not load on this Windows station
+  use_imagenet_stats: true
+  image_transforms:
+    enable: true                          # LeRobot defaults otherwise (max 3 transforms per sample)
+
+policy:
+  type: act
+  device: cuda
+  push_to_hub: false
+  chunk_size: 100
+  n_action_steps: 100
+  use_vae: true
+
+output_dir: outputs/train/act_p4          # relative to cta-learn/; LeRobot refuses to overwrite it
+job_name: act_p4
+seed: 1000
+batch_size: 8
+num_workers: 4
+steps: 100000                             # P0: 100 000 steps in 4 h
+log_freq: 200
+save_freq: 10000
+env_eval_freq: 0
+wandb:
+  enable: false

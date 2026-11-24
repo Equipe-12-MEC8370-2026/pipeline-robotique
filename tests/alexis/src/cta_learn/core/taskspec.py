@@ -8,6 +8,10 @@ then ``TaskSpec.load`` re-validates it.
 Frame: the table frame of the TPV calibration (origin front-right corner, x back, y left, z up), metres,
 degrees. Goals are stored twice: the absolute pose seen in the demo, and the relation that generalises
 (e.g. "upright on top of profile_short, offset (dx, dy) in its frame") — P3 randomises scenes and keeps relations.
+
+Posture of a part (its bounding box, sizes L >= M >= S): "lying" = shortest size vertical, "upright" = longest size
+vertical, "on_edge" = middle size vertical, "unknown" = the video does not tell which face is down (e.g. a near-cube
+seen from one camera). Schema 0.2 added "on_edge" and "unknown"; a 0.1 file is still read (subset of 0.2).
 """
 from __future__ import annotations
 
@@ -15,8 +19,9 @@ import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-SCHEMA_VERSION = "0.1"
-POSTURES = ("lying", "upright")
+SCHEMA_VERSION = "0.2"
+READABLE_VERSIONS = ("0.1", "0.2")
+POSTURES = ("lying", "on_edge", "upright", "unknown")
 PHASES = ("reach", "grasp", "transport", "place", "release", "retreat")
 
 
@@ -29,7 +34,7 @@ class Pose:
     x: float
     y: float
     yaw_deg: float
-    posture: str            # "lying" | "upright"
+    posture: str            # one of POSTURES
     z_base: float = 0.0     # height of the part's base above the table
 
     def validate(self, where: str) -> None:
@@ -106,8 +111,8 @@ class TaskSpec:
 
     # ---------- validation ----------
     def validate(self) -> "TaskSpec":
-        if self.schema_version != SCHEMA_VERSION:
-            raise TaskSpecError(f"schema_version {self.schema_version} != {SCHEMA_VERSION}")
+        if self.schema_version not in READABLE_VERSIONS:
+            raise TaskSpecError(f"schema_version {self.schema_version} not in {READABLE_VERSIONS}")
         if not self.instruction.get("en"):
             raise TaskSpecError("instruction['en'] is required (text prompt of language-conditioned policies)")
         ids = [o.id for o in self.objects]
@@ -161,7 +166,9 @@ class TaskSpec:
         steps = [Step(**{**s, "phases": [Phase(**p) for p in s["phases"]],
                          "goal": Goal(**{**s["goal"], "pose": pose(s["goal"]["pose"]), "relation": Relation(**s["goal"]["relation"])})})
                  for s in d["steps"]]
-        return cls(**{**d, "objects": objs, "steps": steps}).validate()
+        spec = cls(**{**d, "objects": objs, "steps": steps}).validate()
+        spec.schema_version = SCHEMA_VERSION  # 0.1 is a subset of 0.2: read as is, written back as 0.2
+        return spec
 
     def save(self, path: Path) -> None:
         self.validate()

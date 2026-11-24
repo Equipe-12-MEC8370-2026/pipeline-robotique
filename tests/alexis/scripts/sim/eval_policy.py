@@ -29,6 +29,8 @@ parser.add_argument("--port", type=int, default=50765)
 parser.add_argument("--keep_success_videos", type=int, default=5, help="all failures are kept; plus N successes")
 parser.add_argument("--shutdown_server", action="store_true", help="stop the policy server at the end")
 parser.add_argument("--out", type=str, default="outputs/p0_5")
+parser.add_argument("--variant", choices=["p0", "real"], default="p0",
+                    help="p0 = CTA-SO101-PickPlace-v0; real = CTA-SO101-PickPlaceReal-v0 (P4 look-alike scene)")
 AppLauncher.add_app_launcher_args(parser)
 args = parser.parse_args()
 app = AppLauncher(args).app
@@ -77,6 +79,9 @@ if out_dir.exists():
 (out_dir / "videos").mkdir(parents=True)
 
 emb = load_embodiment("so101")
+if args.variant == "real":
+    from cta_learn.sim.tasks.pick_place_real import TASK_ID  # noqa: F811
+    from cta_learn.sim.tasks.pick_place_real import PickPlaceRealEnvCfg as PickPlaceEnvCfg  # noqa: F811
 cfg = PickPlaceEnvCfg()
 cfg.scene.num_envs = 1
 cfg.seed = args.seed

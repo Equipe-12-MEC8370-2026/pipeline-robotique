@@ -1,0 +1,18 @@
+# SAM 2 prompts for the "equerre" (machined aluminium angle block) in the TPV view of pair_20260831_114110
+# (set-up B). Boxes in full-resolution clip pixels [x0, y0, x1, y1], placed by hand on gridded frames (2026-11-18).
+# prompts: block at rest at the front, no hand on it (after the first placement, and at the end with the screw in).
+#   Two prompts because the hands cover it while screwing (~17-24 s) and it is lifted to be checked (~24-28 s).
+# check_start: the block in the rack area at the back right, before the pick. NOT a prompt: backward tracking must
+#   land on it by itself. The screw is not tracked (a few millimetres in the TPV view).
+
+pair: pair_20260831_114110
+view: tpv
+fps: 15
+height: 540
+chunk: 150
+objects:
+  angle_block:
+    prompts:
+      - {t: 29.5, box: [865, 492, 990, 642]}   # final state, screw in place, hands away
+      - {t: 13.0, box: [858, 500, 988, 642]}   # just placed at the front, hands beside it
+    check_start: {t: 0.5, box: [1088, 258, 1188, 362]}
