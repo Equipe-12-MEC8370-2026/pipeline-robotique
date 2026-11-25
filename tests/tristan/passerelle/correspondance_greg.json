@@ -1,0 +1,89 @@
+{
+ "description": "Correspondance SO-101 réel (LeRobot so101_follower, use_degrees=True) <-> sim Isaac (URDF). Bras : sim_deg = lerobot_deg + decalage_deg. Pince : sim_deg linéaire de pince_sim_deg[0] (valeur 0) à pince_sim_deg[1] (valeur 100).",
+ "date": "2026-11-25",
+ "robot_id": "Greg",
+ "decalage_deg": {
+  "shoulder_pan": 1.89,
+  "shoulder_lift": -6.35,
+  "elbow_flex": -4.84,
+  "wrist_flex": -6.39,
+  "wrist_roll": 7.86
+ },
+ "incertitude_deg": {
+  "shoulder_pan": 0.48,
+  "shoulder_lift": 1.54,
+  "elbow_flex": 0.94,
+  "wrist_flex": 3.84,
+  "wrist_roll": 0.63
+ },
+ "decalage_par_pose_deg": {
+  "shoulder_pan": {
+   "A": 1.32,
+   "B": 2.29,
+   "D": 2.11,
+   "E": 1.85
+  },
+  "shoulder_lift": {
+   "D": -7.88,
+   "E": -4.81
+  },
+  "elbow_flex": {
+   "D": -3.9,
+   "E": -5.78
+  },
+  "wrist_flex": {
+   "D": -10.23,
+   "E": -2.55
+  },
+  "wrist_roll": {
+   "A": 7.6,
+   "B": 7.78,
+   "C": 7.14,
+   "D": 8.4,
+   "E": 8.4
+  }
+ },
+ "pince_sim_deg": [
+  -10.0,
+  100.0
+ ],
+ "calibration": {
+  "shoulder_pan": {
+   "homing_offset": 1055,
+   "range_min": 745,
+   "range_max": 3461
+  },
+  "shoulder_lift": {
+   "homing_offset": 1053,
+   "range_min": 820,
+   "range_max": 3112
+  },
+  "elbow_flex": {
+   "homing_offset": 43,
+   "range_min": 940,
+   "range_max": 3145
+  },
+  "wrist_flex": {
+   "homing_offset": -4,
+   "range_min": 892,
+   "range_max": 3201
+  },
+  "wrist_roll": {
+   "homing_offset": -149,
+   "range_min": 0,
+   "range_max": 4095
+  },
+  "gripper": {
+   "homing_offset": -854,
+   "range_min": 2046,
+   "range_max": 3462
+  }
+ },
+ "methode": {
+  "shoulder_pan": "moyenne des poses A+B+D+E",
+  "shoulder_lift": "moyenne des poses D+E",
+  "elbow_flex": "moyenne des poses D+E",
+  "wrist_flex": "moyenne des poses D+E",
+  "wrist_roll": "moyenne des poses A+B+C+D+E"
+ }
+}

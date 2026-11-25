@@ -1,0 +1,113 @@
+{
+ "joint_order": [
+  "shoulder_pan",
+  "shoulder_lift",
+  "elbow_flex",
+  "wrist_flex",
+  "wrist_roll",
+  "gripper"
+ ],
+ "poses": {
+  "A_depart_replie": {
+   "target_deg": [
+    0.0,
+    -95.0,
+    85.0,
+    50.0,
+    0.0,
+    0.0
+   ],
+   "reached_deg": [
+    -0.0,
+    -94.9,
+    85.4,
+    50.1,
+    -0.0,
+    -0.0
+   ]
+  },
+  "B_ready_pince_ouverte": {
+   "target_deg": [
+    0.0,
+    -10.0,
+    20.0,
+    75.0,
+    0.0,
+    100.0
+   ],
+   "reached_deg": [
+    -0.0,
+    -9.5,
+    20.3,
+    75.0,
+    -0.0,
+    100.0
+   ]
+  },
+  "C_verif_pan45_roll90_poignet0": {
+   "target_deg": [
+    45.0,
+    -10.0,
+    20.0,
+    0.0,
+    90.0,
+    0.0
+   ],
+   "reached_deg": [
+    45.0,
+    -9.5,
+    20.6,
+    0.1,
+    90.0,
+    0.0
+   ]
+  },
+  "D_equerre_bras_vertical_avantbras_horizontal_pince_bas": {
+   "target_deg": [
+    0.0,
+    -14.39,
+    15.92,
+    85.02,
+    0.0,
+    0.0
+   ],
+   "reached_deg": [
+    -0.0,
+    -13.97,
+    16.18,
+    85.03,
+    0.0,
+    0.0
+   ],
+   "alignements_residuels_deg": {
+    "bras": 0.0,
+    "avant_bras": 0.0,
+    "pince": 0.0
+   }
+  },
+  "E_bras_tendu_vers_le_haut": {
+   "target_deg": [
+    0.0,
+    -13.95,
+    -73.78,
+    -4.97,
+    0.0,
+    0.0
+   ],
+   "reached_deg": [
+    0.0,
+    -13.97,
+    -73.82,
+    -4.97,
+    -0.0,
+    -0.0
+   ],
+   "alignements_residuels_deg": {
+    "bras": -0.0,
+    "avant_bras": -0.0,
+    "pince": 0.0
+   }
+  }
+ },
+ "wrist_flex_0_pince_vs_avant_bras_deg": 5.09
+}
