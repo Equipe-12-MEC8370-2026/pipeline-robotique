@@ -10,8 +10,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
+import chemins  # noqa: E402
 import generer_correspondance  # noqa: E402
 import mesure  # noqa: E402
 from conversion import Correspondance, HorsLimites  # noqa: E402
@@ -139,7 +138,7 @@ def test_other_calibration_is_refused(calib):
 
 def test_generator_reproduces_offsets(calib):
     """Le générateur donne exactement les décalages ci-dessus à partir des 5 poses enregistrées."""
-    f = HERE / "mesures" / "poses_reelles.json"
+    f = chemins.MESURES / "poses_reelles.json"
     if not f.is_file():
         pytest.skip("pas de mesures sur ce poste")
     corr = generer_correspondance.calculer(json.loads(f.read_text(encoding="utf-8")), calib)

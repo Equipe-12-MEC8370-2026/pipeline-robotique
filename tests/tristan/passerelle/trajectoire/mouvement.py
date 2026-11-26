@@ -72,6 +72,30 @@ def cible_reelle(corr: Correspondance, q_sim_deg) -> np.ndarray:
     return vecteur(corr.sim_vers_reel(np.radians(np.asarray(q_sim_deg, float))))
 
 
+def ralentir(traj, facteur: int) -> np.ndarray:
+    """Insère ``facteur - 1`` points interpolés linéairement entre chaque paire de points : jouée à la même
+    fréquence, la trajectoire dure ``facteur`` fois plus longtemps (mêmes positions, vitesses divisées)."""
+    traj = np.asarray(traj, float)
+    if facteur < 1 or int(facteur) != facteur:
+        raise ValueError("facteur entier >= 1")
+    if len(traj) < 2 or facteur == 1:
+        return traj.copy()
+    s = np.arange(facteur) / facteur
+    seg = traj[:-1, None, :] + s[None, :, None] * np.diff(traj, axis=0)[:, None, :]
+    return np.vstack([seg.reshape(-1, traj.shape[1]), traj[-1:]])
+
+
+def demo_en_reel(corr: Correspondance, actions_rad) -> np.ndarray:
+    """Actions sim (T, 6) en radians -> valeurs réelles (T, 6) par la passerelle ; refus au premier pas hors limites."""
+    out = []
+    for k, a in enumerate(np.asarray(actions_rad, float)):
+        try:
+            out.append(vecteur(corr.sim_vers_reel(a)))
+        except HorsLimites as e:
+            raise HorsLimites(f"action {k} : {e}") from e
+    return np.array(out)
+
+
 def ecart_suivi(commande, mesure_reelle) -> tuple[float, str]:
     """Plus grand écart consigne / mesure (hors pince, qui peut légitimement bloquer sur un objet)."""
     d = np.abs(np.asarray(commande, float) - np.asarray(mesure_reelle, float))[:5]

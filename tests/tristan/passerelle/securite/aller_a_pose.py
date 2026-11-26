@@ -14,8 +14,8 @@ Sécurité :
 --essai_a_blanc : lit la position, montre le plan, n'écrit RIEN.
 
 Depuis tests\tristan\passerelle, dans TON terminal :
-    ..\..\alexis\.venv-learn\Scripts\python.exe aller_a_pose.py --pose D --essai_a_blanc
-    ..\..\alexis\.venv-learn\Scripts\python.exe aller_a_pose.py --pose D
+    ..\..\alexis\.venv-learn\Scripts\python.exe securite\aller_a_pose.py --pose D --essai_a_blanc
+    ..\..\alexis\.venv-learn\Scripts\python.exe securite\aller_a_pose.py --pose D
 """
 
 from __future__ import annotations
@@ -31,8 +31,8 @@ from pathlib import Path
 
 import numpy as np
 
-HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import chemins  # noqa: E402  (rend les autres dossiers de la passerelle importables)
 import mesure  # noqa: E402
 import mouvement as mv  # noqa: E402
 from conversion import Correspondance, HorsLimites  # noqa: E402
@@ -96,6 +96,58 @@ def executer(bus, calib, traj, hz, journal, etiquette) -> bool:
     return True
 
 
+def reconnecter(port: str, calib, essais: int = 15):
+    """Rouvre la liaison avec le bras après une perte du port USB (le couple des moteurs, lui, reste actif)."""
+    for i in range(essais):
+        try:
+            b = make_bus(port, calib)
+            b.connect(handshake=True)
+            print(f"  reconnecté ({i + 1} essai(s))")
+            return b
+        except Exception as e:  # port absent, occupé, moteurs muets…
+            print(f"  reconnexion {i + 1}/{essais} : {type(e).__name__}: {str(e)[:80]}")
+            time.sleep(1.0)
+    raise RuntimeError("liaison avec le bras perdue : TIENS LE BRAS puis lance couper_couple.py "
+                       "(ou débranche l'alimentation du bras)")
+
+
+def _liberer(bus) -> None:
+    try:
+        bus.disconnect(disable_torque=False)
+    except Exception:
+        pass
+
+
+def retour_robuste(bus, port: str, calib, depart, duree: float, hz: float, journal: list):
+    """Retour lent vers ``depart`` ; si la liaison USB tombe (OSError : SerialException, ConnectionError…),
+    reconnexion puis nouveau retour depuis la position mesurée. Renvoie le bus utilisable."""
+    for _ in range(3):
+        try:
+            _, ici = lire_reel(bus, calib)
+            executer(bus, calib, mv.planifier(ici, depart, duree, hz), hz, journal, "retour")
+            return bus
+        except OSError as e:
+            print(f"\nLIAISON PERDUE pendant le retour ({type(e).__name__}) : le bras tient sa position, "
+                  "reconnexion…")
+            journal.append({"phase": "liaison_perdue", "erreur": f"{type(e).__name__}: {e}"[:200]})
+            _liberer(bus)
+            bus = reconnecter(port, calib)
+    raise RuntimeError("retour impossible après 3 reconnexions : TIENS LE BRAS puis lance couper_couple.py")
+
+
+def couper_couple_robuste(bus, port: str, calib):
+    for _ in range(3):
+        try:
+            bus.disable_torque(num_retry=3)
+            print("Couple coupé.")
+            return bus
+        except OSError as e:
+            print(f"Coupure du couple impossible ({type(e).__name__}) : reconnexion…")
+            _liberer(bus)
+            bus = reconnecter(port, calib)
+    raise RuntimeError("couple non coupé : débranche l'alimentation du bras en le tenant")
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--pose", default="D", help="lettre de la pose dans poses/poses.json (D, E, B…)")
@@ -108,8 +160,8 @@ def main():
     args = p.parse_args()
 
     calib = mesure.load_calibration(args.calib)
-    corr = Correspondance.charger(HERE / "correspondance_greg.json", calib)
-    poses = json.loads((HERE / "poses" / "poses.json").read_text(encoding="utf-8"))["poses"]
+    corr = Correspondance.charger(chemins.CORRESPONDANCE, calib)
+    poses = json.loads(chemins.POSES.read_text(encoding="utf-8"))["poses"]
     nom = next(n for n in poses if n.startswith(args.pose.upper() + "_"))
     cible_sim = poses[nom]["target_deg"]
     cible = mv.cible_reelle(corr, cible_sim)  # passe par la passerelle et ses refus
@@ -158,8 +210,8 @@ def main():
         bus.sync_write("Torque_Limit", {j: args.couple for j in JOINTS}, normalize=False)
         bus.sync_write("Acceleration", {j: 30 for j in JOINTS}, normalize=False)
         bus.sync_write("Goal_Velocity", {j: 600 for j in JOINTS}, normalize=False)  # ~53°/s max
-        bus.enable_torque()
-        couple_actif = True
+        couple_actif = True  # AVANT l'activation : si elle échoue à mi-chemin, le finally coupe quand même le couple
+        bus.enable_torque(num_retry=3)
         time.sleep(0.5)
         _, apres = lire_reel(bus, calib)
         saut, js = mv.ecart_suivi(depart, apres)
@@ -184,24 +236,24 @@ def main():
 
         print("\nLe bras tient la pose : vérifie au fil à plomb.")
         input("Entrée = retour lent à la position de départ (repliée)... ")
-        _, ici = lire_reel(bus, calib)
-        retour = mv.planifier(ici, depart, args.duree, args.hz)
-        executer(bus, calib, retour, args.hz, journal, "retour")
+        bus = retour_robuste(bus, args.port, calib, depart, args.duree, args.hz, journal)
         time.sleep(0.5)
     except KeyboardInterrupt:
         if couple_actif:
             figer(bus, calib)
         print("\nInterrompu : bras figé.")
     finally:
-        out = HERE / "mesures" / f"mouvement_{datetime.now():%Y%m%d_%H%M%S}.json"
+        out = chemins.MESURES / f"mouvement_{datetime.now():%Y%m%d_%H%M%S}.json"
         if journal:
             out.write_text(json.dumps(journal), encoding="utf-8")
             print(f"Journal : {out}")
         if couple_actif:
             input("TIENS LE BRAS si besoin, puis Entrée pour couper le couple... ")
-            bus.disable_torque()
-            print("Couple coupé.")
-        bus.disconnect(disable_torque=False)
+            bus = couper_couple_robuste(bus, args.port, calib)
+        try:
+            bus.disconnect(disable_torque=False)
+        except OSError:
+            pass
 
 
 if __name__ == "__main__":

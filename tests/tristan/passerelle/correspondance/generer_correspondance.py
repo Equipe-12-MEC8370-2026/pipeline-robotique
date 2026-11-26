@@ -8,7 +8,7 @@ Méthode (décisions du 2026-11-25, voir HANDOFF) :
   * pince : linéaire [0, 100] -> limites sim [-10, 100]° (vérifié : fermée ≈ 0, ouverte ≈ 95-100).
 Incertitude = demi-écart max entre les poses utilisées.
 
-    ..\..\alexis\.venv-learn\Scripts\python.exe generer_correspondance.py
+    ..\..\alexis\.venv-learn\Scripts\python.exe correspondance\generer_correspondance.py
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ import numpy as np
 import mesure
 
 HERE = Path(__file__).resolve().parent
+MESURES = HERE.parent / "mesures"
 POSES_PAR_ARTICULATION = {
     "shoulder_pan": "ABDE",
     "shoulder_lift": "DE",
@@ -62,7 +63,7 @@ def calculer(mesures: dict, calib: dict[str, mesure.Calib]) -> dict:
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--mesures", default=str(HERE / "mesures" / "poses_reelles.json"))
+    p.add_argument("--mesures", default=str(MESURES / "poses_reelles.json"))
     p.add_argument("--calib", default=str(Path(os.environ["USERPROFILE"])
                                           / ".cache/huggingface/lerobot/calibration/robots/so_follower/Greg.json"))
     p.add_argument("--out", default=str(HERE / "correspondance_greg.json"))

@@ -10,7 +10,7 @@ Touches : [a] / [b] / [c]… enregistrer la pose correspondante, [q] quitter. Im
 Les poses déjà enregistrées dans mesures\poses_reelles.json sont conservées d'un lancement à l'autre.
 
 Lancer dans TON terminal (le script attend des touches), depuis tests\tristan\passerelle :
-    ..\..\alexis\.venv-learn\Scripts\python.exe lire_articulations.py --port COM3
+    ..\..\alexis\.venv-learn\Scripts\python.exe correspondance\lire_articulations.py --port COM3
 """
 
 from __future__ import annotations
@@ -24,8 +24,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import chemins  # noqa: E402  (rend les autres dossiers de la passerelle importables)
 import math  # noqa: E402
 
 import mesure  # noqa: E402
@@ -33,7 +33,7 @@ from conversion import Correspondance, HorsLimites  # noqa: E402
 
 DEFAULT_CALIB = Path(os.environ["USERPROFILE"]) / ".cache/huggingface/lerobot/calibration/robots/so_follower/Greg.json"
 TARGETS = {k: dict(zip(mesure.JOINTS, v["target_deg"]))
-           for k, v in json.loads((HERE / "poses" / "poses.json").read_text(encoding="utf-8"))["poses"].items()}
+           for k, v in json.loads(chemins.POSES.read_text(encoding="utf-8"))["poses"].items()}
 KEYS = {k[0].lower(): k for k in TARGETS}  # a, b, c… = première lettre du nom de la pose
 
 
@@ -76,12 +76,12 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--port", default="COM3")
     p.add_argument("--calib", default=str(DEFAULT_CALIB))
-    p.add_argument("--out", default=str(HERE / "mesures"))
+    p.add_argument("--out", default=str(chemins.MESURES))
     p.add_argument("--hz", type=float, default=5.0)
     args = p.parse_args()
 
     calib = mesure.load_calibration(args.calib)
-    corr_file = HERE / "correspondance_greg.json"
+    corr_file = chemins.CORRESPONDANCE
     corr = Correspondance.charger(corr_file, calib) if corr_file.is_file() else None  # colonne PASSERELLE
     bus = make_bus(args.port, calib)
     bus.connect(handshake=True)  # ping des 6 moteurs + version du firmware (lecture seule)

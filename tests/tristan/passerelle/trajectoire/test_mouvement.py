@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+import chemins  # noqa: E402
 import mesure  # noqa: E402
 import mouvement as mv  # noqa: E402
 from conversion import Correspondance, HorsLimites  # noqa: E402
@@ -79,6 +79,42 @@ def test_no_motion_when_already_there():
 def test_tracking_error_ignores_gripper():
     e, j = mv.ecart_suivi([0, 0, 0, 0, 0, 0], [0, 0, 20.0, 0, 0, 90.0])
     assert (e, j) == (20.0, "elbow_flex")
+
+
+def test_slow_down_keeps_points_and_divides_steps():
+    traj = np.array([[0.0] * 6, [3.0, 0, 0, 0, 0, 6.0], [3.0, 1.5, 0, 0, 0, 0.0]])
+    slow = mv.ralentir(traj, 3)
+    assert len(slow) == 7
+    assert slow[::3] == pytest.approx(traj)  # les points d'origine sont conservés
+    assert np.abs(np.diff(slow, axis=0)).max() == pytest.approx(2.0)  # 6 / 3
+    assert mv.ralentir(traj, 1) == pytest.approx(traj)
+    with pytest.raises(ValueError):
+        mv.ralentir(traj, 0)
+
+
+def test_demo_conversion_and_refusal(corr):
+    q = np.radians([[0.0, -10.0, 20.0, 75.0, 0.0, 30.0], [5.0, -5.0, 15.0, 70.0, 10.0, -10.0]])
+    real = mv.demo_en_reel(corr, q)
+    assert real.shape == (2, 6)
+    assert real[0, 1] == pytest.approx(-10.0 + 6.35)
+    assert real[1, 5] == pytest.approx(0.0)  # pince fermée sim -10° -> 0 réel
+    bad = q.copy()
+    bad[1, 2] = np.radians(150.0)
+    with pytest.raises(HorsLimites, match="action 1"):
+        mv.demo_en_reel(corr, bad)
+
+
+def test_recorded_demo_passes_bridge_when_slowed(corr):
+    """Une vraie démo de l'expert P4 passe entièrement par la passerelle et respecte 2°/pas une fois ralentie x3."""
+    f = chemins.DEMOS_P4 / "episode_000096" / "data.npz"
+    if not f.is_file():
+        pytest.skip("démos P4 absentes sur ce poste")
+    real = mv.demo_en_reel(corr, np.load(f)["action"])
+    with pytest.raises(mv.MouvementRefuse):
+        mv.verifier_pas(real)  # à vitesse réelle, la pince saute > 2°/pas
+    slow = mv.ralentir(real, 3)
+    mv.verifier_pas(slow)
+    mv.verifier_dans_plage_reelle(corr, slow)
 
 
 def test_vector_dict_round_trip():

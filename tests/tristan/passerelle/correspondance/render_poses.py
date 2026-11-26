@@ -4,7 +4,7 @@ Le bras simulé (scène P4 « comme le réel » d'Alexis) est amené dans chaque
 (radians), puis photographié de côté et de face. Les angles visés ET atteints sont écrits sur l'image et dans poses.json.
 
 Lancer depuis tests/alexis (Python d'Isaac) :
-    $env:PYTHONPATH = "$PWD\src"; & C:\dev\env_isaac_lab\Scripts\python.exe ..\tristan\passerelle\render_poses.py
+    $env:PYTHONPATH = "$PWD\src"; & C:\dev\env_isaac_lab\Scripts\python.exe ..\tristan\passerelle\correspondance\render_poses.py
 """
 
 from __future__ import annotations

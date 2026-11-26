@@ -7,7 +7,7 @@ Mesure aussi l'angle entre l'avant-bras et la pince quand wrist_flex = 0 (le zé
 Ajoute la pose D à poses/poses.json et rend ses images.
 
 Lancer depuis tests/alexis (Python d'Isaac) :
-    $env:PYTHONPATH = "$PWD\src"; & C:\dev\env_isaac_lab\Scripts\python.exe ..\tristan\passerelle\pose_equerre.py
+    $env:PYTHONPATH = "$PWD\src"; & C:\dev\env_isaac_lab\Scripts\python.exe ..\tristan\passerelle\correspondance\pose_equerre.py
 """
 
 from __future__ import annotations

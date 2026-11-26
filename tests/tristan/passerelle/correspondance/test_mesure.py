@@ -10,8 +10,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "alexis" / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "alexis" / "src"))
 import mesure  # noqa: E402
 
 # copie de Greg.json (2026-11-17) : le test ne dépend pas du fichier sur le disque
